@@ -5,7 +5,7 @@
     "main": "ui/src/main.js",
     "scripts": {
         "start": "electron .",
-        "test": "cucumber-js && npm run test:contracts",
+        "test": "CUCUMBER_PUBLISH_TOKEN=183135b2-77a0-4d98-9070-8a1c96a6e4e2 cucumber-js && npm run test:contracts",
         "test:contracts": "mocha microservices/config-service/tests/contracts/**/*.spec.js"
     },
     "dependencies": {
