@@ -1,0 +1,42 @@
+{
+    "name": "disco-inferno",
+    "version": "0.0.1",
+    "description": "Node.js application with Electron, microservices, and BDD",
+    "main": "ui/src/main.js",
+    "scripts": {
+        "start": "electron .",
+        "test": "cucumber-js && npm run test:contracts",
+        "test:contracts": "mocha microservices/config-service/tests/contracts/**/*.spec.js"
+    },
+    "dependencies": {
+        "@cucumber/pretty-formatter": "^1.0.1",
+        "axios": "^1.7.4",
+        "electron": "^32.0.0",
+        "express": "^4.17.1",
+        "jointjs": "^3.3.1"
+    },
+    "devDependencies": {
+        "@cucumber/cucumber": "^10.9.0",
+        "@pact-foundation/pact": "^13.1.2",
+        "@pact-foundation/pact-node": "^10.18.0",
+        "chai": "^4.3.6",
+        "electron-reload": "^1.5.0",
+        "mocha": "^10.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dermotcanniffe/DiscoInferno.git"
+    },
+    "keywords": [
+        "BDD",
+        "Discovery",
+        "Example",
+        "Mapping"
+    ],
+    "author": "Dermot Canniffe",
+    "license": "LGPL-2.1-only",
+    "bugs": {
+        "url": "https://github.com/dermotcanniffe/DiscoInferno/issues"
+    },
+    "homepage": "https://github.com/dermotcanniffe/DiscoInferno#readme"
+}
