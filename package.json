@@ -2,7 +2,7 @@
     "name": "disco-inferno",
     "version": "0.0.1",
     "description": "Node.js application with Electron, microservices, and BDD",
-    "main": "ui/src/main.js",
+    "main": "ui/src/main.mjs",
     "scripts": {
         "start": "electron .",
         "test": "CUCUMBER_PUBLISH_TOKEN=183135b2-77a0-4d98-9070-8a1c96a6e4e2 cucumber-js && npm run test:contracts",
@@ -11,7 +11,6 @@
     "dependencies": {
         "@cucumber/pretty-formatter": "^1.0.1",
         "axios": "^1.7.4",
-        "electron": "^32.0.0",
         "express": "^4.17.1",
         "jointjs": "^3.3.1"
     },
@@ -20,6 +19,8 @@
         "@pact-foundation/pact": "^13.1.2",
         "@pact-foundation/pact-node": "^10.18.0",
         "chai": "^4.3.6",
+        "electron": "^32.0.0",
+        "electron-is-dev": "^3.0.1",
         "electron-reload": "^1.5.0",
         "mocha": "^10.0.0"
     },
