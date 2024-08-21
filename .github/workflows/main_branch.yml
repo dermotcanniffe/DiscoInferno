@@ -23,12 +23,12 @@ jobs:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
       env:
-          CUCUMBER_PUBLISH_TOKEN: 183135b2-77a0-4d98-9070-8a1c96a6e4e2
+          CUCUMBER_PUBLISH_TOKEN: ${{ github.ref == 'refs/heads/main' && '183135b2-77a0-4d98-9070-8a1c96a6e4e2' || '' }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
     - run: npm run build --if-present
-    - run: echo "${{ env.CUCUMBER_PUBLISH_TOKEN }}"
+    - run: echo "${{ process.env.CUCUMBER_PUBLISH_TOKEN }}"
     - run: cross-env CUCUMBER_PUBLISH_TOKEN=183135b2-77a0-4d98-9070-8a1c96a6e4e2 && npm test
