@@ -2,6 +2,12 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import isDev from 'electron-is-dev';
 import axios from 'axios';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Recreate __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 
 // Function to create the main application window

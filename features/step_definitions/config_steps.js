@@ -1,5 +1,6 @@
-const { Given, When, Then } = require('@cucumber/cucumber');
-const assert = require('chai').assert;
+import { Given, When, Then } from '@cucumber/cucumber';
+import { assert } from 'chai';
+
 
 Given('a valid configuration object', function () {
   this.config = { key: 'value' };
