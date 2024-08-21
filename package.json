@@ -6,7 +6,7 @@
     "main": "ui/src/main.js",
     "scripts": {
         "start": "electron .",
-        "test": "CUCUMBER_PUBLISH_TOKEN=183135b2-77a0-4d98-9070-8a1c96a6e4e2 cucumber-js && npm run test:contracts",
+        "test": "cucumber-js && npm run test:contracts",
         "test:contracts": "mocha microservices/config-service/tests/contracts/**/*.spec.js"
     },
     "dependencies": {
@@ -20,6 +20,7 @@
         "@pact-foundation/pact": "^13.1.2",
         "@pact-foundation/pact-node": "^10.18.0",
         "chai": "^4.3.6",
+        "cross-env": "^7.0.3",
         "electron": "^32.0.0",
         "electron-is-dev": "^3.0.1",
         "electron-reload": "^1.5.0",
