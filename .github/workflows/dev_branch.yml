@@ -11,6 +11,8 @@ on:
 
 jobs:
   build:
+    env:
+      CUCUMBER_PUBLISH_TOKEN: ${{ github.ref == 'refs/heads/dev' && 'b9a5a2f7-ef61-4ce0-bded-851ec5f9bc79' || '' }}
 
     runs-on: ubuntu-latest
 
@@ -22,13 +24,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      env:
-          CUCUMBER_PUBLISH_TOKEN: b9a5a2f7-ef61-4ce0-bded-851ec5f9bc79
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
     - run: npm run build --if-present
-    - run: echo "${{ env.CUCUMBER_PUBLISH_TOKEN }}"
-    - run: cross-env CUCUMBER_PUBLISH_TOKEN=b9a5a2f7-ef61-4ce0-bded-851ec5f9bc79 && npm test
+    - run: echo "$CUCUMBER_PUBLISH_TOKEN "
+    - run: npm test
