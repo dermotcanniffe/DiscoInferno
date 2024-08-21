@@ -31,4 +31,4 @@ jobs:
     - run: npm ci
     - run: npm run build --if-present
     - run: echo "${{ env.CUCUMBER_PUBLISH_TOKEN }}"
-    - run: npm test
+    - run: cross-env CUCUMBER_PUBLISH_TOKEN=183135b2-77a0-4d98-9070-8a1c96a6e4e2 && npm test
