@@ -1,6 +1,0 @@
-{
-    "default": {
-      "parallel": 2,
-      "format": ["publish", "snippets", "junit"]
-    }
-  }
