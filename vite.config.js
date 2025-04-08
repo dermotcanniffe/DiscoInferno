@@ -4,13 +4,16 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  root: '.',
   base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'public/index.html')
+      input: path.resolve(__dirname, 'index.html'),
+      output: {
+        assetFileNames: '[name][extname]',
+        entryFileNames: '[name].js'
+      }
     }
   },
   resolve: {

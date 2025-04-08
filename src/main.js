@@ -13,12 +13,9 @@ function createWindow() {
     }
   });
 
-  win.webContents.openDevTools();  // Open dev tools to check for errors
-
+  win.webContents.openDevTools();
   win.loadFile('dist/index.html');
 }
-
-
 
 app.whenReady().then(() => {
   createWindow();

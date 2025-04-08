@@ -8,6 +8,9 @@ const DEFAULT_DATA = {
 
 export default function App() {
   const [data, setData] = useState(DEFAULT_DATA);
-  const handleSave = () => window.electronAPI.saveData(JSON.stringify(data));
+  const handleSave = () => {
+    window?.electronAPI?.saveData?.(JSON.stringify(data));
+  };
+
   return <ExampleMapEditor data={data} onChange={setData} onSave={handleSave} />;
 }
