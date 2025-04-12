@@ -1,0 +1,86 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client" // Add this line
+}
+
+
+// --- User Model ---
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  exampleMaps   ExampleMap[]
+}
+
+model ExampleMap {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  // Make userId and user relation optional for now
+  userId      String? // <-- Add '?'
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull) // <-- Add '?' and change onDelete
+  stories     Story[]
+}
+
+// --- Story Model ---
+model Story {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  mapId     String
+  map       ExampleMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  rules     Rule[]
+  questions Question[] // Questions specifically attached to this story
+}
+
+// --- Rule Model ---
+model Rule {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  storyId   String
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  examples  Example[]
+  // No longer has a direct relation to Questions
+}
+
+// --- Example Model ---
+model Example {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ruleId    String
+  rule      Rule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  // No longer has a direct relation to Questions
+}
+
+// --- Question Model ---
+model Question {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // A question now belongs ONLY to a Story
+  storyId   String // REQUIRED foreign key to Story
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade) // Relation field
+}
