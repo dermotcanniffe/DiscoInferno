@@ -29,8 +29,12 @@ model ExampleMap {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   // Make userId and user relation optional for now
-  userId      String? // <-- Add '?'
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull) // <-- Add '?' and change onDelete
+  //userId      String? // <-- Add '?'
+  // Make userId and user relation REQUIRED
+  userId      String    // <--- Remove '?'
+  //user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull) // <-- Add '?' and change onDelete
+    // Use onDelete: Cascade (or Restrict if preferred)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade) // <--- Remove '?' and set onDelete
   stories     Story[]
 }
 

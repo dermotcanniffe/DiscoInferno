@@ -1,8 +1,10 @@
-// server/server.js
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import mapRoutes from './routes/mapRoutes.js'; // Import the map router
+import passport from 'passport'; // Import passport
+import authRoutes from './routes/authRoutes.js'; // Import auth routes
+import './config/passport.js'; // Import passport configuration (we'll create this next)
 
 
 // Load environment variables from .env file
@@ -13,8 +15,13 @@ const PORT = process.env.PORT || 5000; // Use port from env file or default to 5
 
 // Middleware
 app.use(cors()); // Enable CORS for all origins (adjust later for production)
-app.use(express.json()); // Middleware to parse JSON request bodies
-app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Initialize Passport BEFORE mounting routes that use it
+app.use(passport.initialize())
+
+// ... graceful shutdown ...
 
 // --- API Routes ---
 
@@ -22,6 +29,9 @@ app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-enco
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend server is running!' });
 });
+
+// Mount Auth Routes
+app.use('/api/auth', authRoutes); // Routes for /api/auth/register, /api/auth/login
 
 // Mount the map routes
 app.use('/api/maps', mapRoutes); // All routes defined in mapRoutes will be prefixed with /api/maps

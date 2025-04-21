@@ -3,266 +3,239 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient(); // Import and instantiate Prisma Client
 
-// Controller function to create a new Example Map
+// --- Create Map ---
+// (Associate with logged-in user)
 export const createMap = async (req, res, next) => {
-  // Extract data from the request body sent by the frontend
-  const { title, description, stories } = req.body; // Assuming frontend sends map title, description, and nested stories array
+  console.log("\n--- Inside createMap Controller ---"); // Add newline for readability
+  console.log("Authenticated User ID:", req.user?.id); // Use optional chaining just in case
+  console.log("Received Request Body:", JSON.stringify(req.body, null, 2)); // Log the full body
 
-  // Basic validation (add more as needed)
+  const { title, description, stories } = req.body;
+  const userId = req.user.id; // <-- Get user ID from authenticated request (provided by 'protect' middleware)
+
   if (!title || !stories) {
+    console.error(`Validation Failed! Title: '${title}', Stories:`, stories);
     return res.status(400).json({ message: 'Missing required fields: title and stories' });
   }
+  if (!userId) { // Should not happen if 'protect' middleware is working
+    console.error("Error in createMap: req.user.id is missing after 'protect' middleware.");
+    return res.status(401).json({ message: 'Unauthorized: User ID missing.' });
+  }
+
 
   try {
-    // --- Use Prisma to create the map and all nested items ---
     const newMap = await prisma.exampleMap.create({
       data: {
         title: title,
         description: description,
-        // userId: req.user?.id, // Placeholder: Link to user when auth is ready
-        stories: { // This is the magic: Nested writes!
-          create: stories.map(story => ({ // Map over the stories array from req.body
+        userId: userId, // <-- Associate with logged-in user
+        // Ensure nested create includes necessary fields like 'order'
+        stories: {
+          create: stories.map((story, storyIndex) => ({ // Add index if needed for default order
             text: story.text,
-            order: story.order,
-            questions: { // Nested write for questions within a story
-              create: story.questions?.map(question => ({
+            order: story.order ?? storyIndex, // Use provided order or default to index
+            questions: {
+              create: story.questions?.map((question, questionIndex) => ({
                 text: question.text,
-                order: question.order,
-              })) || [], // Handle if questions array is missing/null
+                order: question.order ?? questionIndex,
+              })) || [],
             },
-            rules: { // Nested write for rules within a story
-              create: story.rules?.map(rule => ({
+            rules: {
+              create: story.rules?.map((rule, ruleIndex) => ({
                 text: rule.text,
-                order: rule.order,
-                examples: { // Nested write for examples within a rule
-                  create: rule.examples?.map(example => ({
+                order: rule.order ?? ruleIndex,
+                examples: {
+                  create: rule.examples?.map((example, exampleIndex) => ({
                     text: example.text,
-                    order: example.order,
-                  })) || [], // Handle if examples array is missing/null
+                    order: example.order ?? exampleIndex,
+                  })) || [],
                 },
-              })) || [], // Handle if rules array is missing/null
+              })) || [],
             },
           })),
-        },
-      },
-      // Include the nested data in the response (optional, but useful)
-      include: {
+        }, // End stories create
+      }, // End data
+      include: { // Include everything needed by frontend
         stories: {
+          orderBy: { order: 'asc' },
           include: {
             rules: {
-              include: {
-                examples: true,
-              },
+              orderBy: { order: 'asc' },
+              include: { examples: { orderBy: { order: 'asc' } }, },
             },
-            questions: true,
+            questions: { orderBy: { order: 'asc' }, },
           },
         },
-      },
-    });
-    
-    // Send the newly created map back as a response
+      }, // End include
+    }); // End create
     res.status(201).json(newMap);
-
   } catch (error) {
-    console.error("Error creating map:", error);
-    next(error); // Pass error to the global error handler in server.js
+    console.error(`Error creating map for user ${userId}:`, error);
+    next(error);
   }
 };
+
 // --- Get Latest Map ---
+// (Filtered for logged-in user)
 export const getLatestMap = async (req, res, next) => {
-  console.log("Attempting to fetch the latest map..."); // Log entry
+  const userId = req.user.id; // <-- Get user ID
+  console.log(`Attempting to fetch latest map for user ID: ${userId}`);
 
   try {
-    // Find the first map when ordered by updatedAt descending
     const latestMap = await prisma.exampleMap.findFirst({
-      // We'll add filtering by userId later when auth is implemented
-      // where: {
-      //   userId: req.user?.id // Placeholder
-      // },
-      orderBy: {
-        updatedAt: 'desc', // Get the most recently updated one
+      where: {
+        userId: userId, // <-- Filter by logged-in user
       },
-      // Include all nested data needed by the frontend editor
-      include: {
+      orderBy: { updatedAt: 'desc' },
+      include: { // Include everything
         stories: {
-          orderBy: { order: 'asc' }, // Ensure stories are ordered correctly
+          orderBy: { order: 'asc' },
           include: {
             rules: {
-              orderBy: { order: 'asc' }, // Ensure rules are ordered correctly
-              include: {
-                examples: {
-                  orderBy: { order: 'asc' }, // Ensure examples are ordered correctly
-                },
-              },
+              orderBy: { order: 'asc' },
+              include: { examples: { orderBy: { order: 'asc' } }, },
             },
-            questions: {
-              orderBy: { order: 'asc' }, // Ensure questions are ordered correctly
-            },
+            questions: { orderBy: { order: 'asc' }, },
           },
         },
       },
     });
 
     if (latestMap) {
-      console.log("Found latest map:", latestMap.id);
-      res.status(200).json(latestMap); // Send the map data if found
+      console.log(`Found latest map: ${latestMap.id} for user ${userId}`);
+      res.status(200).json(latestMap);
     } else {
-      // If no maps exist in the database yet
-      console.log("No maps found in the database.");
-      // Send 404 Not Found, or maybe an empty object/default structure
-      // depending on how the frontend handles it. Let's send 404 for now.
-      res.status(404).json({ message: 'No maps found' });
+      console.log(`No maps found for user ${userId}`);
+      res.status(404).json({ message: 'No maps found for this user' });
     }
-
   } catch (error) {
-    console.error("Error fetching latest map:", error);
-    next(error); // Pass error to the global error handler
+    console.error(`Error fetching latest map for user ${userId}:`, error);
+    next(error);
   }
 };
-// Add other controller functions here later (getMaps, getMapById, updateMap, deleteMap)
 
 // --- Update Map ---
+// (Authorize owner and update)
 export const updateMap = async (req, res, next) => {
-  const { mapId } = req.params; // Get map ID from route parameter
-  const { title, description, stories } = req.body; // Get updated data from request body
+  const { mapId } = req.params;
+  console.log("\n--- Inside updateMap Controller ---"); // Add newline
+  console.log("Authenticated User ID:", req.user?.id);
+  console.log("Target Map ID:", mapId);
+  console.log("Received Request Body:", JSON.stringify(req.body, null, 2)); // Log the full body
 
-  console.log(`Attempting to update map ID: ${mapId}`);
+  const { title, description, stories } = req.body;
+  const userId = req.user.id; // <-- Get user ID
 
-  // Basic validation
+  console.log(`Attempting to update map ID: ${mapId} for user ID: ${userId}`);
   if (!title || !stories) {
-    return res.status(400).json({ message: 'Missing required fields: title and stories' });
+    console.error(`Validation Failed! Title: '${title}', Stories:`, stories);
+    return;
   }
 
   try {
-    // --- Authorization Check Placeholder ---
-    // TODO: Later, verify req.user has permission to edit this mapId
-    // const map = await prisma.exampleMap.findUnique({ where: { id: mapId } });
-    // if (!map || map.userId !== req.user.id) { // Check ownership
-    //   return res.status(403).json({ message: 'Forbidden: You do not own this map' });
-    // }
-    // --- End Placeholder ---
-
     const updatedMap = await prisma.$transaction(async (tx) => {
-      // 1. Delete existing nested children (bottom-up or rely on cascade)
-      // Prisma schema uses onDelete: Cascade, so deleting stories should cascade.
-      // Let's explicitly delete Questions first to be safe, then Stories.
-      // Need to find stories belonging to the map to delete their questions first.
-      const storiesToDelete = await tx.story.findMany({
-        where: { mapId: mapId },
-        select: { id: true } // Select only IDs
+      // --- Authorization Check ---
+      // Find the map FIRST and check ownership
+      const mapToUpdate = await tx.exampleMap.findUnique({
+        where: { id: mapId }
       });
-      const storyIdsToDelete = storiesToDelete.map(s => s.id);
-
-      if (storyIdsToDelete.length > 0) {
-           // Delete Questions associated with these stories
-           await tx.question.deleteMany({
-                where: { storyId: { in: storyIdsToDelete } }
-           });
-           // Note: Examples are deleted via cascade when Rules are deleted
-           // Note: Rules are deleted via cascade when Stories are deleted
-           // Now delete the stories themselves
-           await tx.story.deleteMany({
-                where: { id: { in: storyIdsToDelete } }
-           });
+      if (!mapToUpdate) {
+        throw new Error('MapNotFound'); // Custom error string
       }
+      if (mapToUpdate.userId !== userId) {
+        throw new Error('Forbidden'); // Custom error string
+      }
+      // --- End Auth Check ---
 
+      // Delete existing children (using cascade defined in schema is simpler)
+      // Prisma's cascade on Story should handle Rules/Examples/Questions deletion
+      await tx.story.deleteMany({ where: { mapId: mapId } });
 
-      // 2. Update the ExampleMap and recreate nested items
+      // Update the ExampleMap and recreate nested items
       const map = await tx.exampleMap.update({
-        where: { id: mapId },
+        where: { id: mapId }, // We know user owns it from check above
         data: {
           title: title,
           description: description,
-          stories: { // Use nested 'create' to add the new/updated stories
-            create: stories.map(story => ({
+          // userId doesn't change on update
+          // Recreate stories using nested create
+          stories: {
+            create: stories.map((story, storyIndex) => ({
               text: story.text,
-              order: story.order,
+              order: story.order ?? storyIndex,
               questions: {
-                create: story.questions?.map(question => ({
-                  text: question.text,
-                  order: question.order,
+                create: story.questions?.map((question, questionIndex) => ({
+                  text: question.text, order: question.order ?? questionIndex,
                 })) || [],
               },
               rules: {
-                create: story.rules?.map(rule => ({
-                  text: rule.text,
-                  order: rule.order,
+                create: story.rules?.map((rule, ruleIndex) => ({
+                  text: rule.text, order: rule.order ?? ruleIndex,
                   examples: {
-                    create: rule.examples?.map(example => ({
-                      text: example.text,
-                      order: example.order,
+                    create: rule.examples?.map((example, exampleIndex) => ({
+                      text: example.text, order: example.order ?? exampleIndex,
                     })) || [],
                   },
                 })) || [],
               },
             })),
-          },
-        },
-        // 3. Include the newly created nested data in the result
-        include: {
-          stories: {
-            orderBy: { order: 'asc' },
-            include: {
-              rules: {
-                orderBy: { order: 'asc' },
-                include: {
-                  examples: { orderBy: { order: 'asc' } },
-                },
-              },
-              questions: { orderBy: { order: 'asc' } },
-            },
-          },
-        },
-      }); // End exampleMap.update
-
-      return map; // Return result of the update operation
+          }, // End stories create
+        }, // End data
+        include: { /* ... includes ... */ }, // Include everything again
+      }); // End update
+      return map; // Return result from transaction
     }); // End transaction
 
-    console.log(`Map updated successfully: ${mapId}`);
-    res.status(200).json(updatedMap); // Send back updated map data
+    console.log(`Map updated successfully: ${mapId} by user ${userId}`);
+    res.status(200).json(updatedMap);
 
   } catch (error) {
-      // Handle potential errors, e.g., map not found for the given ID
-     if (error.code === 'P2025') { // Prisma code for record not found on update/delete
-        console.error(`Update failed: Map not found with ID: ${mapId}`);
-         return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
-     }
-     console.error(`Error updating map ${mapId}:`, error);
-     next(error); // Pass other errors to the global handler
+    // Handle custom errors from transaction
+    if (error.message === 'MapNotFound') {
+      return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
+    }
+    if (error.message === 'Forbidden') {
+      return res.status(403).json({ message: 'Forbidden: You do not own this map' });
+    }
+    console.error(`Error updating map ${mapId} for user ${userId}:`, error);
+    next(error);
   }
-}; // End updateMap
+};
 
 // --- Delete Map ---
+// (Authorize owner and delete)
 export const deleteMap = async (req, res, next) => {
-  const { mapId } = req.params; // Get map ID from route parameter
+  const { mapId } = req.params;
+  const userId = req.user.id; // <-- Get user ID
 
-  console.log(`Attempting to delete map ID: ${mapId}`);
+  console.log(`Attempting to delete map ID: ${mapId} for user ID: ${userId}`);
 
   try {
-    // --- Authorization Check Placeholder ---
-    // TODO: Later, verify req.user owns this mapId before deleting
-    // const map = await prisma.exampleMap.findUnique({ where: { id: mapId } });
-    // if (!map || map.userId !== req.user.id) {
-    //   return res.status(403).json({ message: 'Forbidden: You do not own this map' });
-    // }
-    // --- End Placeholder ---
-
-    // Delete the map - cascading deletes should handle related records
-    await prisma.exampleMap.delete({
-      where: { id: mapId },
+    // Use deleteMany with compound where clause for auth check & delete in one
+    const deleteResult = await prisma.exampleMap.deleteMany({
+      where: {
+        id: mapId,
+        userId: userId // <-- IMPORTANT: Only delete if ID and userId match
+      },
     });
 
-    console.log(`Map deleted successfully: ${mapId}`);
-    // Send a success response, 204 No Content is common for DELETE
-    res.status(204).send();
+    // Check if any record was actually deleted
+    if (deleteResult.count === 0) {
+      // Check if map exists at all to differentiate 404 from 403
+      const mapExists = await prisma.exampleMap.findUnique({ where: { id: mapId }, select: { id: true } }); // Select only id
+      if (!mapExists) {
+        return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
+      } else {
+        // Map exists but user doesn't own it
+        return res.status(403).json({ message: 'Forbidden: You do not own this map' });
+      }
+    }
+
+    console.log(`Map deleted successfully: ${mapId} by user ${userId}`);
+    res.status(204).send(); // Success, no content to return
 
   } catch (error) {
-     // Handle potential errors, e.g., map not found
-     if (error.code === 'P2025') { // Prisma code for record to delete not found
-        console.error(`Delete failed: Map not found with ID: ${mapId}`);
-         return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
-     }
-     console.error(`Error deleting map ${mapId}:`, error);
-     next(error); // Pass other errors to the global handler
+    console.error(`Error deleting map ${mapId} for user ${userId}:`, error);
+    next(error);
   }
-}; // End deleteMap
+};

@@ -5,22 +5,24 @@ import { createMap,
     updateMap, 
     deleteMap 
 } from '../controllers/mapController.js'; // Import controller function
+import { protect } from '../middleware/authMiddleware.js'; // Import protect middleware
+
 
 const router = express.Router();
 
 // Define routes
 // POST /api/maps/
-router.post('/', createMap);
+router.post('/', protect, createMap);
 
 // GET /api/maps/ - Add this route to get the latest map
-router.get('/', getLatestMap);
+router.get('/', protect, getLatestMap);
 // Add other routes later (GET /, GET /:id, PUT /:id, DELETE /:id)
 
 // PUT /api/maps/:mapId  (Update) - Add this route
-router.put('/:mapId', updateMap);
+router.put('/:mapId', protect, updateMap);
 
 // DELETE /api/maps/:mapId (Delete) - Add this route
-router.delete('/:mapId', deleteMap);
+router.delete('/:mapId', protect, deleteMap);
 
 
 export default router;
