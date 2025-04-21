@@ -1,6 +1,7 @@
 // server/routes/mapRoutes.js
 import express from 'express';
 import { createMap, 
+    getMaps,
     getLatestMap, 
     updateMap, 
     deleteMap 
@@ -10,19 +11,24 @@ import { protect } from '../middleware/authMiddleware.js'; // Import protect mid
 
 const router = express.Router();
 
+// Apply 'protect' middleware to all map routes
+router.use(protect);  // Apply protect to all routes below defined on this router
+
 // Define routes
 // POST /api/maps/
-router.post('/', protect, createMap);
+router.post('/', createMap);
 
-// GET /api/maps/ - Add this route to get the latest map
-router.get('/', protect, getLatestMap);
-// Add other routes later (GET /, GET /:id, PUT /:id, DELETE /:id)
+// GET /api/maps/latest  (Get LATEST Full Map) - Define specific before general
+router.get('/latest', getLatestMap);
+
+// GET /api/maps/        (Get ALL Map Summaries)
+router.get('/', getMaps);
 
 // PUT /api/maps/:mapId  (Update) - Add this route
-router.put('/:mapId', protect, updateMap);
+router.put('/:mapId', updateMap);
 
 // DELETE /api/maps/:mapId (Delete) - Add this route
-router.delete('/:mapId', protect, deleteMap);
+router.delete('/:mapId', deleteMap);
 
 
 export default router;

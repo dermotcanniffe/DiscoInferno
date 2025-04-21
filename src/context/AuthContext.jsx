@@ -77,21 +77,44 @@ export const AuthProvider = ({ children }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
-            const data = await response.json();
+    
+            // --- Improved Error Handling ---
             if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                let errorMsg = `Login failed (Status: ${response.status})`; // Default message
+                try {
+                    // Try to parse potential JSON error message from backend
+                    const errorData = await response.json();
+                    // Use backend message if available, otherwise stick to default
+                    errorMsg = errorData.message || errorMsg;
+                } catch (jsonError) {
+                    // If response wasn't JSON, it might be plain text like "Unauthorized"
+                    // You could try response.text() here, but often just indicating
+                    // incorrect credentials is best for security.
+                    console.warn("Could not parse error response as JSON:", jsonError);
+                    // Use a generic, user-friendly message for auth failures
+                    errorMsg = 'Incorrect email or password.';
+                }
+                // Throw the determined error message to be caught below
+                throw new Error(errorMsg);
             }
+            // --- End Improved Error Handling ---
+    
+            // If response IS ok, parse the success data (token, user)
+            const data = await response.json();
+    
             // Call internal login handler on success
             login(data.user, data.token);
             return true; // Indicate success
+    
         } catch (err) {
             console.error('API Login failed:', err);
+            // Set the authError state with the message from the thrown Error
             setAuthError(err.message || 'Login failed. Please check credentials.');
             return false; // Indicate failure
         } finally {
             setIsLoading(false);
         }
-    };
+    }; // --- End apiLogin ---
 
     const apiRegister = async (email, password, name) => {
         setIsLoading(true);

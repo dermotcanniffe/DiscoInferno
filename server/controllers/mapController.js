@@ -75,41 +75,62 @@ export const createMap = async (req, res, next) => {
   }
 };
 
-// --- Get Latest Map ---
-// (Filtered for logged-in user)
+// --- Get LATEST Full Map for User ---
 export const getLatestMap = async (req, res, next) => {
-  const userId = req.user.id; // <-- Get user ID
-  console.log(`Attempting to fetch latest map for user ID: ${userId}`);
-
-  try {
-    const latestMap = await prisma.exampleMap.findFirst({
-      where: {
-        userId: userId, // <-- Filter by logged-in user
-      },
-      orderBy: { updatedAt: 'desc' },
-      include: { // Include everything
+  const userId = req.user.id;
+ console.log(`Attempting to fetch latest full map for user ID: ${userId}`);
+ try {
+   const latestMap = await prisma.exampleMap.findFirst({ // Use findFirst
+     where: { userId: userId },
+     orderBy: { updatedAt: 'desc' },
+     include: { // Include FULL details
         stories: {
-          orderBy: { order: 'asc' },
-          include: {
-            rules: {
-              orderBy: { order: 'asc' },
-              include: { examples: { orderBy: { order: 'asc' } }, },
-            },
-            questions: { orderBy: { order: 'asc' }, },
-          },
-        },
-      },
-    });
+           orderBy: { order: 'asc' },
+               include: {
+                   rules: {
+                       orderBy: { order: 'asc' },
+                       include: { examples: { orderBy: { order: 'asc' } },},
+                   },
+                   questions: { orderBy: { order: 'asc' },},
+               },
+           },
+      }, // End include
+   }); // End findFirst
 
-    if (latestMap) {
-      console.log(`Found latest map: ${latestMap.id} for user ${userId}`);
-      res.status(200).json(latestMap);
-    } else {
-      console.log(`No maps found for user ${userId}`);
-      res.status(404).json({ message: 'No maps found for this user' });
-    }
+   if (latestMap) {
+       console.log(`Found latest map: ${latestMap.id} for user ${userId}`);
+       res.status(200).json(latestMap); // Return the single map object
+   } else {
+       console.log(`No maps found for user ${userId}`);
+       // Send 404 for consistency when expecting a single specific resource (the latest)
+       res.status(404).json({ message: 'No maps found for this user' });
+   }
+ } catch (error) {
+     console.error(`Error fetching latest map for user ${userId}:`, error);
+     next(error);
+ }
+}; // End getLatestMap
+
+// --- Get ALL Map Summaries for User ---
+export const getMaps = async (req, res, next) => {
+  const userId = req.user.id;
+  console.log(`Attempting to fetch all map summaries for user ID: ${userId}`);
+  try {
+    const maps = await prisma.exampleMap.findMany({
+      where: { userId: userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { // Select only summary fields
+        id: true,
+        title: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+    console.log(`Found ${maps.length} map summaries for user ${userId}`);
+    res.status(200).json(maps); // Return array (can be empty)
   } catch (error) {
-    console.error(`Error fetching latest map for user ${userId}:`, error);
+    console.error(`Error fetching map summaries for user ${userId}:`, error);
     next(error);
   }
 };

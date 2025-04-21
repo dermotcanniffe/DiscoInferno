@@ -184,7 +184,7 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
 
   // --- Add Handler for Example Text Update ---
   const handleExampleTextUpdate = (storyIndex, ruleIndex, exampleIndex, newText) => {
-    const path = `stories.<span class="math-inline">\{storyIndex\}\.rules\.</span>{ruleIndex}.examples.${exampleIndex}.text`;
+    const path = `stories.${storyIndex}.rules.${ruleIndex}.examples.${exampleIndex}.text`; 
     console.log(`handleExampleTextUpdate: Calling updateField for path: ${path}`);
     updateField(path, newText);
   };
