@@ -27,6 +27,28 @@ model PluginConfiguration {
   @@index([userId])
 }
 // --- END PLUGIN MODEL ---
+// --- ExternalLink MODEL For Plugin Relationships ---
+model ExternalLink {
+  id                 String    @id @default(cuid())
+  pluginId           String    // Identifies the external system/plugin (e.g., "spira", "jira")
+  externalSystemUrl  String?   // Optional: Base URL if needed for context (e.g., "https://myco.spiraservice.net")
+  externalIdentifiers  Json   // ID settings for linking to external system artifacts
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Link to our ExampleMap
+  mapId              String
+  map                ExampleMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  // Link to the User who created the link (for permissions maybe?)
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([mapId])
+  @@index([userId])
+  //@@index([pluginId, externalIndentifiers]) // For finding links
+}
+// --- END ExternalLink MODEL ---
 
 // --- User Model ---
 model User {
@@ -40,6 +62,7 @@ model User {
   exampleMaps   ExampleMap[]
   //webhookSubscriptions WebhookSubscription[] // Webhooks
   pluginConfigurations PluginConfiguration[] // Plugins
+  externalLinks ExternalLink[]
 }
 
 model ExampleMap {
@@ -56,6 +79,7 @@ model ExampleMap {
     // Use onDelete: Cascade (or Restrict if preferred)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade) // <--- Remove '?' and set onDelete
   stories     Story[]
+  externalLinks ExternalLink[]
 }
 
 // --- Story Model ---

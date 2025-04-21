@@ -6,6 +6,7 @@ import userRoutes from './routes/userRoutes.js';
 import passport from 'passport'; // Import passport
 import authRoutes from './routes/authRoutes.js'; // Import auth routes
 import externalApiRoutes from './routes/externalApiRoutes.js';
+import pluginConfigRoutes from './routes/pluginConfigRoutes.js';
 import './config/passport.js'; // Import passport configuration (we'll create this next)
 
 
@@ -41,6 +42,8 @@ app.use('/api/maps', mapRoutes); // All routes defined in mapRoutes will be pref
 app.use('/api/me', userRoutes); // <-- (already protected internally)
 // Mount external API routes
 app.use('/api/external', externalApiRoutes);
+// Mount Plugin Config Routes
+app.use('/api/me/plugins', pluginConfigRoutes);
 
 // Start the server
 app.listen(PORT, () => {

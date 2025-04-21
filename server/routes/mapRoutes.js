@@ -6,7 +6,8 @@ import { createMap,
     getMapById, 
     updateMap, 
     deleteMap 
-} from '../controllers/mapController.js'; // Import controller function
+} from '../controllers/mapController.js'; // Import map controller functions
+import { createExternalLink, getExternalLinksForMap, deleteExternalLink } from '../controllers/externalLinkController.js'; // import External Link Controllers
 import { protect } from '../middleware/authMiddleware.js'; // Import protect middleware
 
 
@@ -34,5 +35,16 @@ router.put('/:mapId', updateMap);
 // DELETE /api/maps/:mapId (Delete) - Add this route
 router.delete('/:mapId', deleteMap);
 
+
+// --- Link Routes ---
+// POST /api/maps/:mapId/links - Create a link for this map
+router.post('/:mapId/links', createExternalLink);
+
+// GET /api/maps/:mapId/links - List links for this map
+router.get('/:mapId/links', getExternalLinksForMap);
+
+// DELETE /api/maps/:mapId/links/:linkId - Delete a specific link associated with this map
+router.delete('/:mapId/links/:linkId', deleteExternalLink);
+// --- End Link Routes ---
 
 export default router;
