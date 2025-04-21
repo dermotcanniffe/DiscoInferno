@@ -1,0 +1,134 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client" // Add this line
+}
+
+
+// --- Plugin Management ---
+model PluginConfiguration {
+  id            String   @id @default(cuid())
+  pluginId      String   // Identifier for the plugin, e.g., "spira", "jira"
+  userId        String   // Which user these settings belong to
+  configuration Json     // Stores plugin-specific settings (URL, API Key, Project ID, etc.)
+  isEnabled     Boolean  @default(true) // Allow users to enable/disable plugins
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Link back to User
+
+  @@unique([userId, pluginId]) // A user can only have one config per plugin type
+  @@index([userId])
+}
+// --- END PLUGIN MODEL ---
+// --- ExternalLink MODEL For Plugin Relationships ---
+model ExternalLink {
+  id                 String    @id @default(cuid())
+  pluginId           String    // Identifies the external system/plugin (e.g., "spira", "jira")
+  externalSystemUrl  String?   // Optional: Base URL if needed for context (e.g., "https://myco.spiraservice.net")
+  externalIdentifiers  Json   // ID settings for linking to external system artifacts
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Link to our ExampleMap
+  mapId              String
+  map                ExampleMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  // Link to the User who created the link (for permissions maybe?)
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([mapId])
+  @@index([userId])
+  //@@index([pluginId, externalIndentifiers]) // For finding links
+}
+// --- END ExternalLink MODEL ---
+
+// --- User Model ---
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String
+  name          String?
+  apiKeyHash    String?      @unique // Store HASH of the API key, make unique, optional
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  exampleMaps   ExampleMap[]
+  //webhookSubscriptions WebhookSubscription[] // Webhooks
+  pluginConfigurations PluginConfiguration[] // Plugins
+  externalLinks ExternalLink[]
+}
+
+model ExampleMap {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  // Make userId and user relation optional for now
+  //userId      String? // <-- Add '?'
+  // Make userId and user relation REQUIRED
+  userId      String    // <--- Remove '?'
+  //user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull) // <-- Add '?' and change onDelete
+    // Use onDelete: Cascade (or Restrict if preferred)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade) // <--- Remove '?' and set onDelete
+  stories     Story[]
+  externalLinks ExternalLink[]
+}
+
+// --- Story Model ---
+model Story {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  mapId     String
+  map       ExampleMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  rules     Rule[]
+  questions Question[] // Questions specifically attached to this story
+}
+
+// --- Rule Model ---
+model Rule {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  storyId   String
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  examples  Example[]
+  // No longer has a direct relation to Questions
+}
+
+// --- Example Model ---
+model Example {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ruleId    String
+  rule      Rule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  // No longer has a direct relation to Questions
+}
+
+// --- Question Model ---
+model Question {
+  id        String    @id @default(cuid())
+  text      String
+  order     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // A question now belongs ONLY to a Story
+  storyId   String // REQUIRED foreign key to Story
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade) // Relation field
+}

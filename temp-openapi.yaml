@@ -1,0 +1,115 @@
+openapi: 3.0.0
+info:
+  title: DiscoInferno External API (Basic)
+  version: 1.0.0
+  description: Basic endpoints for external interaction with Example Maps.
+servers:
+  - url: http://localhost:5000/api/external # Base URL for the external API routes
+    description: Local development server
+
+# Define security schemes (how authentication works)
+components:
+  securitySchemes:
+    ApiKeyAuth: # Arbitrary name for the scheme
+      type: apiKey
+      in: header    # Where the key is sent (header, query, or cookie)
+      name: X-API-Key # The actual header name
+
+# Define reusable parameters (like mapId) - optional but good practice
+  parameters:
+    MapIdParam:
+      name: mapId
+      in: path
+      required: true
+      description: ID of the Example Map to retrieve.
+      schema:
+        type: string
+# Define reusable schemas (for request/response bodies) - very basic for now
+  schemas:
+    MapData: # Basic representation of map data - expand later
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        stories:
+          type: array
+          items:
+            type: object # Define story structure more if needed
+      required:
+        - title
+        - stories
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+# Define API paths and operations
+paths:
+  /maps: # Path relative to server URL (/api/external/maps)
+    post:
+      summary: Create a new Example Map
+      description: Creates a new Example Map associated with the user identified by the API Key.
+      operationId: externalCreateMap # Optional unique ID
+      security: # Apply the security scheme defined above
+        - ApiKeyAuth: []
+      requestBody:
+        description: Map data to create. Requires title and stories array.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MapData' # Reference the basic schema
+      responses:
+        '201': # Created successfully
+          description: Example Map created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapData' # Response is the created map
+        '400': # Bad Request
+          description: Invalid request body (e.g., missing title or stories).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401': # Unauthorized
+          description: Unauthorized (Missing or invalid API Key).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /maps/{mapId}: # Path relative to server URL (/api/external/maps/{mapId})
+    get:
+      summary: Get a specific Example Map by ID
+      description: Retrieves the full details of a specific Example Map owned by the user identified by the API Key.
+      operationId: externalGetMapById
+      security:
+        - ApiKeyAuth: []
+      parameters: # Define parameters used in this path
+        - $ref: '#/components/parameters/MapIdParam' # Reference the reusable parameter
+      responses:
+        '200': # OK
+          description: Successfully retrieved Example Map details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapData' # Response is the full map
+        '401': # Unauthorized
+          description: Unauthorized (Missing or invalid API Key).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404': # Not Found
+          description: Map not found with the specified ID or not owned by the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
