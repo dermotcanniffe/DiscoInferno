@@ -1,40 +1,39 @@
 // src/App.jsx
-import React, { useState, useEffect } from "react";
-import { Routes, Route, Link, Navigate } from 'react-router-dom'; // Import routing components
-
+import React, { useState, useEffect } from "react"; // Removed useEffect from App itself initially
+// Import router components
+import { Routes, Route, Link, Navigate, useParams, useNavigate } from 'react-router-dom';
+// Import Auth Hook
+import { useAuth } from './context/AuthContext'; // Adjust path if needed
 // Import Components
-import ExampleMapEditor from "./ExampleMapEditor";
-import RegisterForm from "./components/Auth/RegisterForm";
-import LoginForm from "./components/Auth/LoginForm";
-import { useAuth } from './context/AuthContext'; // <-- Import useAuth
+import ExampleMapEditor from "./ExampleMapEditor"; // Adjust path if needed
+import RegisterForm from "./components/Auth/RegisterForm"; // Adjust path if needed
+import LoginForm from "./components/Auth/LoginForm";       // Adjust path if needed
+import DashboardPage from "./pages/DashboardPage";
 
+// --- Helper Function (Define outside App component) ---
+// Creates fetch options, adding Auth header if token exists
 const getAuthFetchOptions = (token, method = 'GET', body = null) => {
-  // Define standard headers
-  const headers = {
-      'Content-Type': 'application/json',
-  };
-  // Add the Authorization header IF token exists
-  if (token) {
-      headers['Authorization'] = `${token}`; // Assumes token includes "Bearer " prefix from context/login
-  }
-  // Define base options object
-  const options = { method, headers };
-  // Add body IF it's provided (and stringify it)
-  if (body) {
-      options.body = JSON.stringify(body);
-  }
-  return options; // Return the complete options object for fetch
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        // Assumes token from context includes "Bearer " prefix
+        headers['Authorization'] = `${token}`;
+    }
+    const options = { method, headers };
+    if (body) {
+        options.body = JSON.stringify(body);
+    }
+    return options;
 };
-// ---> END HELPER FUNCTION DEFINITION <---
+// --- End Helper Function ---
 
-
-// Default Data
+// --- ENSURE THIS INLINE DEFINITION EXISTS ---
 export const DEFAULT_DATA = {
   title: "My New Map", // Or your preferred default title
   description: "",
   stories: [ // Start with one empty story object in the array
     {
-      // No ID needed here, backend will assign
       text: "Initial Story...",
       order: 0,
       rules: [],
@@ -42,316 +41,213 @@ export const DEFAULT_DATA = {
     }
   ]
 };
-// ---> END OF DEFAULT_DATA DEFINITION <---
+// --- END OF DEFAULT_DATA DEFINITION ---
 
+
+// --- App Component (Main Layout, Routing, Auth Context) ---
 export default function App() {
-  // --- State Variables ---
-  const [data, setData] = useState(null); // Start null before loading
-  const [loading, setLoading] = useState(true); // Start in loading state (for initial map load)
-  const [error, setError] = useState(null); // To store map loading errors
+    // Get Authentication state from context
+    const { token, user, isAuthenticated, isLoading: isAuthLoading, authError, logoutAction } = useAuth();
 
-  // Real Auth State from Context 
-  const { token, user, isAuthenticated, isLoading: isAuthLoading, authError, logoutAction } = useAuth();
+    // NOTE: Map data state (data, loading, error) and handlers (handleSave, handleDelete)
+    // have been MOVED INTO the ProtectedMapEditor component below.
 
-  // --- Mock Auth State (Temporary) ---
-  // This simulates whether the user is logged in.
-  // TODO: Replace this with 'isAuthenticated' from useAuth() later.
-  // const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // --- End Mock Auth State ---
+    // Logout handler using context action
+    const handleLogout = () => {
+        console.log("Calling logoutAction from context...");
+        logoutAction();
+    };
 
-  // --- Data Loading useEffect ---
-  // Fetches the latest map IF the user is authenticated
-  useEffect(() => {
-    // Don't attempt to load maps if not authenticated
-    // 'isAuthenticated' from useAuth()
-    if (!isAuthenticated) {
-      console.log("App useEffect: User not authenticated, skipping map load, setting default data.");
-      setData(structuredClone(DEFAULT_DATA)); // Show default map if logged out
-      setLoading(false); // Not loading anymore
-      setError(null); // Clear any previous errors
-      return; // Exit effect early
-    }
+    // --- Protected Route Element Definition ---
+    // This component now fetches and manages the state for ONE map
+    const ProtectedMapEditor = () => {
+        const { isAuthenticated: isAuthNow, token: currentToken, logoutAction: contextLogout } = useAuth(); // Get needed context here
+        const { mapId } = useParams(); // Get mapId from URL (:mapId)
+        const navigate = useNavigate(); // For navigation after save/delete
 
-    // Proceed with fetching if authenticated
-    setLoading(true);
-    setError(null);
-    console.log("App useEffect: Fetching initial map data with token...");
-        // Use helper to add token (define getAuthFetchOptions outside component)
-        fetch('/api/maps', getAuthFetchOptions(token)) // Pass token to helper
-            .then(response => {
-                if (response.status === 404) {
-                    console.log("App useEffect: No saved map found (404), using default.");
-                    return structuredClone(DEFAULT_DATA);
-                }
-                // Handle auth errors explicitly (e.g., invalid/expired token)
-                if (response.status === 401 || response.status === 403) {
-                     console.error("App useEffect: Auth error fetching map", response.status);
-                     setError(`Authentication error (${response.status}). Please log in again.`);
-                     logoutAction(); // Force logout immediately if token is bad
-                     return null; // Signal error to prevent further processing
-                }
-                if (!response.ok) {
-                    // Handle other non-auth HTTP errors
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json(); // Parse data if response is OK
-            })
-            .then(mapData => {
-                 if (mapData === null) return; // Exit if auth error occurred above
+        // State for map data within this component
+        const [data, setData] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
 
-                 console.log("App useEffect: Received map data:", mapData);
-                 // Merge fetched data with defaults
-                 const initialData = { ...structuredClone(DEFAULT_DATA), ...mapData };
-                 // Ensure stories array exists
-                 if (!initialData.stories || initialData.stories.length === 0) {
-                     initialData.stories = structuredClone(DEFAULT_DATA.stories);
+        // Effect to load data based on mapId and auth state
+        useEffect(() => {
+            setData(null); // Reset data when mapId changes
+            setLoading(true);
+            setError(null);
+
+            if (!isAuthNow) {
+                setLoading(false);
+                return; // Auth check handled by routing, but safe to have here
+            }
+
+            let isNew = mapId === 'new';
+            let fetchUrl = '';
+
+            if (isNew) {
+                console.log("ProtectedMapEditor: Setting up new map.");
+                setData(structuredClone(DEFAULT_DATA)); // Start with default structure
+                setLoading(false);
+                return; // Don't fetch
+            } else if (mapId) {
+                // Fetch specific map by ID
+                console.log(`ProtectedMapEditor: Fetching map ${mapId}...`);
+                fetchUrl = `/api/maps/${mapId}`;
+            } else {
+                // Fallback if no ID provided (e.g., navigated directly to '/map')
+                // We could redirect to list, or load latest as before
+                 console.log("ProtectedMapEditor: No mapId provided, fetching latest...");
+                 fetchUrl = `/api/maps/latest`;
+            }
+
+            fetch(fetchUrl, getAuthFetchOptions(currentToken))
+                .then(response => {
+                    if (response.status === 404) {
+                        const msg = mapId ? `Map with ID ${mapId} not found or not owned.` : 'No maps found for user.';
+                        console.log(`ProtectedMapEditor: ${msg}`);
+                        throw new Error(msg); // Throw error to be caught below
+                    }
+                    if (response.status === 401 || response.status === 403) {
+                        console.error("ProtectedMapEditor: Auth error fetching map", response.status);
+                        contextLogout(); // Use logout action from context
+                        throw new Error(`Authentication error (${response.status}).`);
+                    }
+                    if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+                    return response.json();
+                })
+                .then(mapData => {
+                    console.log("ProtectedMapEditor: Received map data:", mapData);
+                    // Use default as base, override with loaded data
+                    const initialData = { ...structuredClone(DEFAULT_DATA), ...mapData };
+                     // Ensure stories array exists if map was somehow saved without it
+                    if (!initialData.stories) initialData.stories = [];
+                    setData(initialData);
+                })
+                .catch(err => {
+                    console.error("ProtectedMapEditor: Error fetching map data:", err);
+                    setError(err.message || "Failed to load map data.");
+                    // Don't set default data on error, just show the error message
+                })
+                .finally(() => { setLoading(false); });
+
+        // Dependencies: run when mapId or auth state changes
+        }, [mapId, isAuthNow, currentToken, contextLogout]);
+
+
+        // --- Handlers defined inside ProtectedMapEditor ---
+         const handleSave = async () => {
+             if (!isAuthNow || !data) return;
+             console.log("ProtectedMapEditor handleSave:", data);
+             const mapPayload = { title: data.title || "My Map", description: data.description || "", stories: data.stories || [] };
+             const isUpdating = !!data.id; // Check if loaded map has an ID
+             const url = isUpdating ? `/api/maps/${data.id}` : '/api/maps';
+             const method = isUpdating ? 'PUT' : 'POST';
+             try {
+                 const fetchOptions = getAuthFetchOptions(currentToken, method, mapPayload);
+                 const response = await fetch(url, fetchOptions);
+                 if (!response.ok) {
+                     const errorData = await response.json().catch(() => ({ message: `Save failed with status ${response.status}` })); // Catch JSON parse errors
+                     throw new Error(errorData.message || `Save failed with status ${response.status}`);
                  }
-                 setData(initialData); // Set the final state
-            })
-            .catch(err => {
-                 console.error("App useEffect: Error during fetch/processing:", err);
-                  // Avoid setting error again if it was an auth error already handled
-                 if (!String(err.message).includes('Authentication error')) {
-                     setError(err.message || "Failed to load map data.");
+                 const savedOrUpdatedMap = await response.json();
+                 alert(`Map ${isUpdating ? 'updated' : 'saved'}!`);
+                 // Update state with response (includes ID if new)
+                 setData({ ...structuredClone(DEFAULT_DATA), ...savedOrUpdatedMap });
+                 // Navigate to the correct URL if it was a new map
+                 if (!isUpdating && savedOrUpdatedMap.id) {
+                      navigate(`/map/${savedOrUpdatedMap.id}`, { replace: true });
                  }
-                 // Ensure data is reset to default on error
-                 setData(structuredClone(DEFAULT_DATA));
-            })
-            .finally(() => {
-                 setLoading(false); // Ensure loading is always set to false
-                 console.log("App useEffect: Finished fetch attempt.");
-            });
+             } catch (err) {
+                 console.error("Error saving map:", err);
+                 alert(`Error saving map: ${err.message}`);
+             }
+         };
 
-    // Re-run this effect if the user logs in/out (isAuthenticated changes)
-    // or if the token itself changes (e.g., refresh token mechanism later)
-    }, [isAuthenticated, token, logoutAction]); // Updated dependencies
+        const handleDelete = async () => {
+            if (!isAuthNow || !data?.id) return;
+            const mapTitle = data.title || 'this map';
+            if (!window.confirm(`Delete map "${mapTitle}"?`)) return;
+            const mapIdToDelete = data.id;
+            try {
+                const fetchOptions = getAuthFetchOptions(currentToken, 'DELETE');
+                const response = await fetch(`/api/maps/${mapIdToDelete}`, fetchOptions);
+                 if (!response.ok && response.status !== 204) {
+                     const errorData = await response.json().catch(() => ({ message: `Delete failed with status ${response.status}` }));
+                     throw new Error(errorData.message || `Delete failed with status ${response.status}`);
+                 }
+                alert("Map deleted!");
+                navigate('/', { replace: true }); // Navigate to map list after delete
+            } catch (err) {
+                console.error(`Error deleting map ${mapIdToDelete}:`, err);
+                alert(`Error deleting map: ${err.message}`);
+            }
+        };
+        // --- End Handlers ---
+
+        // --- Render Logic for this component ---
+        if (loading) return <div>Loading Editor...</div>;
+        if (error) return <div style={{ padding: '20px', color: 'red' }}>Error Loading Map: {error}</div>;
+        if (!data) return <div>Could not load map data.</div>; // Should ideally not happen if !loading && !error
+
+        // Render editor if data is ready
+        return (
+            <>
+                {/* Pass this component's state and handlers down */}
+                <ExampleMapEditor data={data} onChange={setData} onSave={handleSave} />
+                {/* Delete Button (conditional on data having an ID) */}
+                {data && data.id && (
+                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                        <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                            Delete This Map
+                        </button>
+                    </div>
+                )}
+            </>
+        );
+    }; // --- End ProtectedMapEditor ---
 
 
-
-  // --- handleSave  ---
-  const handleSave = async () => {
-    // --- 1. Add Authentication Check ---
-    if (!isAuthenticated) {
-         alert("Please log in to save.");
-         return; // Don't proceed if not logged in
-    }
-    // --- End Auth Check ---
-
-    if (!data) {
-        console.error("Cannot save, data is null or still loading.");
-        alert("Cannot save map, data is not ready yet.");
-        return;
-    }
-   console.log("Saving map data to backend...", data);
-
-   // Payload creation (ensure this uses your current data state correctly)
-   const mapPayload = {
-     title: data.title || "My Example Map",
-     description: data.description || "",
-     stories: data.stories || [],
-   };
-   console.log("Payload being constructed:", JSON.stringify(mapPayload, null, 2));
-
-   const isUpdating = !!data.id;
-   const url = isUpdating ? `/api/maps/${data.id}` : '/api/maps';
-   const method = isUpdating ? 'PUT' : 'POST';
-   console.log(`Save method: ${method}, URL: ${url}`);
-
-   try {
-       // --- 2. Use Helper for Fetch Options (includes token) ---
-       const fetchOptions = getAuthFetchOptions(token, method, mapPayload);
-       // --- End Helper Use ---
-
-       console.log("Fetch options being used:", fetchOptions); // Log options (excluding body potentially)
-
-       const response = await fetch(url, fetchOptions); // Use the generated options
-
-       if (!response.ok) {
-         // Try to parse error json, but handle cases where it might not be json
-         let errorMsg = `HTTP error! status: ${response.status}`;
-         try {
-             const errorData = await response.json();
-             errorMsg = errorData.message || errorMsg;
-         } catch (parseError) {
-             // If parsing fails, stick with the status code message
-             console.warn("Could not parse error response as JSON.");
-         }
-         throw new Error(errorMsg);
-       }
-
-       const savedOrUpdatedMap = await response.json();
-       const action = isUpdating ? "updated" : "saved";
-       console.log(`Map ${action} successfully:`, savedOrUpdatedMap);
-       alert(`Map ${action} successfully!`); // TODO: Replace with toast later
-
-       // Update state with the response from backend
-       const updatedData = { ...structuredClone(DEFAULT_DATA), ...savedOrUpdatedMap };
-       setData(updatedData);
-
-   } catch (error) {
-     console.error(`Error ${isUpdating ? 'updating' : 'saving'} map:`, error);
-     alert(`Error ${isUpdating ? 'updating' : 'saving'} map: ${error.message}`);
-   }
-};
-
-  // --- handleDelete  (Auth Header) ---
-const handleDelete = async () => {
-  // --- 1. Add Authentication Check ---
-  if (!isAuthenticated) {
-       alert("Please log in to delete.");
-       return; // Don't proceed if not logged in
-  }
-  // --- End Auth Check ---
-
-  // Check if there is a map loaded with an ID
-  if (!data?.id) {
-      alert("No map loaded or map hasn't been saved yet.");
-      return;
-  }
-
-  // Confirm with the user
-  const mapTitle = data.title || 'this map'; // Get title for confirmation message
-  if (!window.confirm(`Are you sure you want to delete map "${mapTitle}"? This cannot be undone.`)) {
-      return; // User cancelled
-  }
-
-  const mapIdToDelete = data.id;
-  console.log(`Attempting to delete map ID: ${mapIdToDelete}`);
-
-  try {
-      // --- 2. Use Helper for Fetch Options (includes token) ---
-      const fetchOptions = getAuthFetchOptions(token, 'DELETE');
-      // --- End Helper Use ---
-
-      console.log("Fetch options being used:", fetchOptions); // Log options
-
-      const response = await fetch(`/api/maps/${mapIdToDelete}`, fetchOptions); // Use the generated options
-
-      // Check for HTTP errors (like 404 Not Found, 403 Forbidden)
-      // Note: Successful DELETE often returns 204 No Content, which response.ok handles.
-      if (!response.ok) {
-          let errorMsg = `HTTP error! status: ${response.status}`;
-          try {
-              // Try to get more specific message from backend if possible
-              const errorData = await response.json();
-              errorMsg = errorData.message || errorMsg;
-          } catch (parseError) {
-              console.warn("Could not parse error response as JSON for DELETE.");
-          }
-          throw new Error(errorMsg);
-      }
-
-      console.log(`Map deleted successfully: ${mapIdToDelete}`);
-      alert("Map deleted successfully!"); // TODO: Replace with toast later
-
-      // Reset the state to default after successful deletion
-      setData(structuredClone(DEFAULT_DATA));
-
-  } catch (error) {
-      console.error(`Error deleting map ${mapIdToDelete}:`, error);
-      alert(`Error deleting map: ${error.message}`);
-  }
-};
-
-  // --- Logout Handler ---
-  const handleLogout = () => {
-    console.log("Calling logoutAction from context to log out...");
-    logoutAction(); // Call the function provided by useAuth()
-    // No need to call setIsAuthenticated or navigate here,
-    // AuthContext's logoutAction and the component reacting to
-    // the change in 'isAuthenticated' state will handle it.
-};
-
-  // --- Internal Component for Protected Route Element ---
-  // Handles rendering the editor or redirecting based on auth & data state
-  const MapEditorRoute = () => {
-    // Get AUTH state needed for this component's logic
-    // Note: We get it here again, though App also has it, to ensure this
-    // component reacts correctly if used in different contexts later.
-    const { isAuthenticated: isAuthNow } = useAuth();
-
-    // Check authentication status FIRST
-    if (!isAuthNow) {
-        // If user is not authenticated, redirect them to the login page.
-        // 'replace' prevents the current route from being added to history.
-         console.log("ProtectedMapEditor: Not authenticated, redirecting to /login.");
-        return <Navigate to="/login" replace />;
-    }
-
-    // If authenticated, THEN check map data loading/error states
-    // These states (loading, error, data) come from the parent App component's state
-    if (loading) {
-        // Display loading message while map data is being fetched
-        return <div>Loading map data...</div>;
-    }
-    if (error) {
-        // Display error if map data failed to load (after login)
-        return <div style={{ padding: '20px', color: 'red' }}>Map Loading Error: {error}</div>;
-    }
-    if (!data) {
-        // Fallback if data is somehow null after loading finishes without error
-        // (Could happen if default data setting failed, though unlikely now)
-        return <div>No map data available.</div>;
-    }
-
-    // If authenticated AND map data is loaded without errors, render the editor
-    console.log("ProtectedMapEditor: Rendering Editor for authenticated user.");
+    // --- App Return (Layout + Routes) ---
     return (
-        <>
-            <ExampleMapEditor data={data} onChange={setData} onSave={handleSave} />
-            {/* Conditional Delete Button */}
-            {data && data.id && (
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                    <button onClick={handleDelete} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                        Delete This Map
-                    </button>
+        <div> {/* Main App Container */}
+            <nav style={{ background: '#eee', padding: '10px', marginBottom: '10px' }}>
+                {/* Link to root now conceptually means "Map List" */}
+                {isAuthenticated && <Link to="/" style={{ marginRight: '10px' }}>My Example Maps</Link>}
+                {!isAuthenticated && <Link to="/login" style={{ marginRight: '10px' }}>Login</Link>}
+                {!isAuthenticated && <Link to="/register" style={{ marginRight: '10px' }}>Register</Link>}
+                {isAuthenticated && <button onClick={handleLogout}>Logout</button>}
+                {isAuthenticated && user && <span style={{float: 'right'}}>Logged in as: {user.name || user.email}</span>}
+            </nav>
+
+            {/* Display global Authentication errors */}
+            {authError && (
+                <div style={{ padding: '10px 20px', color: 'red', border: '1px solid red', margin: '10px 20px' }}>
+                    Authentication Error: {authError}
                 </div>
             )}
-        </>
+
+            <Routes>
+                 {/* Login/Register only accessible when logged out */}
+                <Route path="/login" element={ !isAuthenticated ? <LoginForm /> : <Navigate to="/" replace /> } />
+                <Route path="/register" element={ !isAuthenticated ? <RegisterForm /> : <Navigate to="/" replace /> } />
+
+                {/* Map Editor Route (handles new/specific/latest) */}
+                {/* The element uses the component defined above */}
+                {/* Protect this route wrapper - redirect if not logged in */}
+                 <Route path="/map/:mapId" element={ isAuthenticated ? <ProtectedMapEditor /> : <Navigate to="/login" replace /> } />
+                 {/* Optional: Route for /map without ID, could load latest or redirect */}
+                 <Route path="/map" element={ isAuthenticated ? <ProtectedMapEditor /> : <Navigate to="/login" replace /> } />
+
+
+                 {/* Root path - shows Map List or redirects to login */}
+                 <Route path="/" element={
+                      isAuthenticated ? <DashboardPage /> : <Navigate to="/login" replace />
+                 } />
+
+                 {/* Fallback for unknown routes */}
+                 <Route path="*" element={<div>Page Not Found</div>} />
+
+            </Routes>
+        </div> // End Main App Container
     );
-}; //
-  // --- Main Return: Layout + Router Outlet ---
-  return (
-    <div> {/* Main App Container */}
-      {/* --- Navigation (Always Rendered) --- */}
-      <nav style={{ background: '#eee', padding: '10px', marginBottom: '10px' }}>
-        {/* TODO: Use NavLink for active styling later */}
-        <Link to="/" style={{ marginRight: '10px' }}>Home (Map)</Link>
-
-        {/* Show Login/Register or Logout based on mock auth state */}
-        {!isAuthenticated && (
-          <>
-            <Link to="/login" style={{ marginRight: '10px' }}>Login</Link>
-            <Link to="/register" style={{ marginRight: '10px' }}>Register</Link>
-          </>
-        )}
-        {isAuthenticated && (
-          <button onClick={handleLogout}>Logout</button>
-        )}
-      </nav>
-      {/* --- End Navigation --- */}
-
-      {/* No top-level error/loading here anymore - handled in MapEditorRoute */}
-      {/* {error && <div style={{...}}>Data Loading Error: {error}</div>} */}
-
-      {/* --- Router Outlet (Always Rendered) --- */}
-      <Routes>
-        {/* Redirect logged-in users away from login/register */}
-        <Route path="/login" element={
-          !isAuthenticated ? <LoginForm /> : <Navigate to="/" replace />
-        } />
-        <Route path="/register" element={
-          !isAuthenticated ? <RegisterForm /> : <Navigate to="/" replace />
-        } />
-
-        {/* Main Map Route - Element uses the protected wrapper component */}
-        <Route path="/" element={<MapEditorRoute />} />
-
-        {/* Add other routes here later */}
-
-      </Routes>
-      {/* --- End Routes --- */}
-
-    </div> // End Main App Container
-  );
 } // End of App component

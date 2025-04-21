@@ -2,7 +2,8 @@
 import express from 'express';
 import { createMap, 
     getMaps,
-    getLatestMap, 
+    getLatestMap,
+    getMapById, 
     updateMap, 
     deleteMap 
 } from '../controllers/mapController.js'; // Import controller function
@@ -20,6 +21,9 @@ router.post('/', createMap);
 
 // GET /api/maps/latest  (Get LATEST Full Map) - Define specific before general
 router.get('/latest', getLatestMap);
+
+// GET /api/maps/:mapId  (Get ONE specific Full Map by ID) - Add this route
+router.get('/:mapId', getMapById);
 
 // GET /api/maps/        (Get ALL Map Summaries)
 router.get('/', getMaps);

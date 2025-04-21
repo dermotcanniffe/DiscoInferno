@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import RuleCard from './components/RuleCard';
 import ExampleCard from './components/ExampleCard';
 import QuestionCard from './components/QuestionCard';
+import StoryCard from './components/StoryCard';
 
 function DragWrapper({ id, children, color, width = "w-48" }) {
   const {
@@ -81,7 +82,40 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
       lastAddedExample.current = null;
     }
   }, [data]);
-
+  const [localTitle, setLocalTitle] = useState(data?.title ?? '');
+  const [localDescription, setLocalDescription] = useState(data?.description ?? '');
+  
+  // Sync Effects for Title/Description
+  useEffect(() => {
+      setLocalTitle(data?.title ?? '');
+  }, [data?.title]);
+  
+  useEffect(() => {
+      setLocalDescription(data?.description ?? '');
+  }, [data?.description]);
+  
+  // Handler for Title Update (onBlur)
+  const handleTitleBlur = () => {
+      if (localTitle !== (data?.title ?? '')) {
+           console.log("Title input blurred, updating parent state.");
+           updateField('title', localTitle);
+      }
+  };
+  // Handler for Description Update (onBlur)
+  const handleDescriptionBlur = () => {
+      if (localDescription !== (data?.description ?? '')) {
+           console.log("Description input blurred, updating parent state.");
+           updateField('description', localDescription);
+      }
+  };
+  
+  // Handler for Story Text Update (needed if we use StoryCard component)
+  const handleStoryTextUpdate = (storyIndex, newText) => {
+      const path = `stories.${storyIndex}.text`;
+      console.log(`handleStoryTextUpdate: Calling updateField for path: ${path}`);
+      updateField(path, newText);
+  };
+  
   // Add local state for Story text ---
   const [localStoryText, setLocalStoryText] = useState(data.stories?.[0]?.text ?? '');
 
@@ -409,28 +443,56 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
 
     console.log("handleDragEnd: No draggable type matched or indices were the same.");
   };
-
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div className="p-6 space-y-6 bg-neutral-50 min-h-screen">
-        <div className="flex justify-center">
-          <Card className="bg-yellow-100 shadow-lg w-64">
-            <CardContent>
-              <label className="font-bold block mb-2">Story</label>
-              <Textarea
-                className="bg-transparent"
-                value={localStoryText}
-                //onChange={(e) => updateField("stories.0.text", e.target.value)}
-                onChange={(e) => setLocalStoryText(e.target.value)}
-                onBlur={() => { // update parents state on blur
-                  if (localStoryText !== (data.stories?.[0]?.text ?? '')) {
-                    updateField("stories.0.text", localStoryText);
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <div className="p-6 space-y-6 bg-neutral-50 min-h-screen">
+
+             {/* === Title and Description Card === */}
+             <div className="flex justify-center mb-4"> {/* Added mb-4 */}
+                 <Card className="bg-white shadow-lg w-full max-w-2xl">
+                     <CardContent className="p-4 space-y-2">
+                         <div>
+                             <label htmlFor="map-title" className="font-bold block mb-1 text-sm text-gray-700">Map Title</label>
+                             <input
+                                 id="map-title"
+                                 type="text"
+                                 placeholder="Enter map title..."
+                                 className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                 value={localTitle} // Use local state
+                                 onChange={(e) => setLocalTitle(e.target.value)} // Update local state
+                                 onBlur={handleTitleBlur} // Update parent on blur
+                             />
+                         </div>
+                         <div>
+                             <label htmlFor="map-description" className="font-bold block mb-1 text-sm text-gray-700">Description</label>
+                             <Textarea
+                                 id="map-description"
+                                 placeholder="Enter optional description..."
+                                 className="bg-transparent"
+                                 value={localDescription} // Use local state
+                                 onChange={(e) => setLocalDescription(e.target.value)} // Update local state
+                                 onBlur={handleDescriptionBlur} // Update parent on blur
+                                 rows={2}
+                             />
+                         </div>
+                     </CardContent>
+                 </Card>
+             </div>
+             {/* === End Title/Description Card === */}
+
+
+             {/* === Story Section (Render first story using StoryCard) === */}
+             {/* Check if stories exist before trying to render */}
+             {data?.stories && data.stories.length > 0 && (
+                 <StoryCard
+                     storyData={data.stories[0]} // Pass first story data
+                     storyIndex={0}             // Pass index 0
+                     onUpdateText={handleStoryTextUpdate} // Pass handler
+                 />
+             )}
+             {/* === End Story Section === */}
+
+
 
         <div className="flex justify-center">
           <div className="flex gap-6">
@@ -513,6 +575,10 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
             </div>
 
 
+            {/* --- Add New Story Button (For later) --- */}
+            {/* <div className="pt-6 text-center"> ... </div> */}
+
+            {/* --- Save Button --- */}
             <div className="pt-6">
               <Button onClick={onSave} className="w-full">
                 Save

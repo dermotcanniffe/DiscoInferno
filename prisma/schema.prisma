@@ -17,6 +17,7 @@ model User {
   email         String       @unique
   passwordHash  String
   name          String?
+  apiKeyHash    String?      @unique // Store HASH of the API key, make unique, optional
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   exampleMaps   ExampleMap[]

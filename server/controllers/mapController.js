@@ -135,6 +135,58 @@ export const getMaps = async (req, res, next) => {
   }
 };
 
+// --- Get ONE Specific Map by ID ---
+export const getMapById = async (req, res, next) => {
+  const { mapId } = req.params;
+  const userId = req.user.id;
+  console.log(`Attempting to fetch map ID: ${mapId} for user ID: ${userId}`);
+
+  try {
+      // Find the map by its ID
+      // Use findUniqueOrThrow to automatically handle not found case
+      const map = await prisma.exampleMap.findUniqueOrThrow({
+          where: { id: mapId },
+          include: { // Include ALL nested details needed by the editor
+              stories: {
+                  orderBy: { order: 'asc' },
+                  include: {
+                      rules: {
+                          orderBy: { order: 'asc' },
+                          include: { examples: { orderBy: { order: 'asc' } }, },
+                      },
+                      questions: { orderBy: { order: 'asc' }, },
+                  },
+              },
+          }, // End include
+      }); // End findUniqueOrThrow
+
+      // --- Authorization Check ---
+      // Check if the fetched map belongs to the logged-in user
+      if (map.userId !== userId) {
+           console.warn(`Forbidden access attempt: User ${userId} tried to access map ${mapId} owned by ${map.userId}`);
+           // Throw a specific error type or return 403/404
+           // Returning 404 might be slightly better security practice than 403
+           // as it doesn't confirm the resource exists to unauthorized users.
+           return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
+          // Or: return res.status(403).json({ message: 'Forbidden: You do not own this map' });
+      }
+      // --- End Auth Check ---
+
+      console.log(`Successfully fetched map ${mapId} for user ${userId}`);
+      res.status(200).json(map); // Send the full map details
+
+  } catch (error) {
+      // Handle Prisma's RecordNotFound error from findUniqueOrThrow
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+          console.log(`Map not found with ID: ${mapId}`);
+          return res.status(404).json({ message: `Map not found with ID: ${mapId}` });
+      }
+      // Handle other potential errors
+      console.error(`Error fetching map ${mapId} for user ${userId}:`, error);
+      next(error);
+  }
+}; // End getMapById
+
 // --- Update Map ---
 // (Authorize owner and update)
 export const updateMap = async (req, res, next) => {
