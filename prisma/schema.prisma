@@ -11,6 +11,23 @@ generator client {
 }
 
 
+// --- Plugin Management ---
+model PluginConfiguration {
+  id            String   @id @default(cuid())
+  pluginId      String   // Identifier for the plugin, e.g., "spira", "jira"
+  userId        String   // Which user these settings belong to
+  configuration Json     // Stores plugin-specific settings (URL, API Key, Project ID, etc.)
+  isEnabled     Boolean  @default(true) // Allow users to enable/disable plugins
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Link back to User
+
+  @@unique([userId, pluginId]) // A user can only have one config per plugin type
+  @@index([userId])
+}
+// --- END PLUGIN MODEL ---
+
 // --- User Model ---
 model User {
   id            String       @id @default(cuid())
@@ -21,6 +38,8 @@ model User {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   exampleMaps   ExampleMap[]
+  //webhookSubscriptions WebhookSubscription[] // Webhooks
+  pluginConfigurations PluginConfiguration[] // Plugins
 }
 
 model ExampleMap {

@@ -2,8 +2,10 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import mapRoutes from './routes/mapRoutes.js'; // Import the map router
+import userRoutes from './routes/userRoutes.js';
 import passport from 'passport'; // Import passport
 import authRoutes from './routes/authRoutes.js'; // Import auth routes
+import externalApiRoutes from './routes/externalApiRoutes.js';
 import './config/passport.js'; // Import passport configuration (we'll create this next)
 
 
@@ -35,7 +37,10 @@ app.use('/api/auth', authRoutes); // Routes for /api/auth/register, /api/auth/lo
 
 // Mount the map routes
 app.use('/api/maps', mapRoutes); // All routes defined in mapRoutes will be prefixed with /api/maps
-
+// Mount the user routes
+app.use('/api/me', userRoutes); // <-- (already protected internally)
+// Mount external API routes
+app.use('/api/external', externalApiRoutes);
 
 // Start the server
 app.listen(PORT, () => {
