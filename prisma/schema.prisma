@@ -10,6 +10,14 @@ generator client {
   output   = "../node_modules/.prisma/client" // Add this line
 }
 
+// --- Core Settings Model ---
+model CoreSetting {
+  setting_key   String @id @map("setting_key")
+  setting_value String @map("setting_value")
+
+  @@map("core_settings")
+}
+// --- END Core Settings ---
 
 // --- Plugin Management ---
 model PluginConfiguration {
