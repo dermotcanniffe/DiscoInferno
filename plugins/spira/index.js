@@ -159,7 +159,7 @@ const spiraPlugin = {
                  // return { success: true, ... };
                  return { success: true, message: `Map exported to ${spiraConfig.appName} (Dummy).`};
 
-             } catch (error) { /* ... error handling ... */ return { success: false, ... }; }
+             } catch (error) { /* ... error handling ... */ return { success: false,  }; }
          }
          return { success: false, message: "Action not supported." };
     }

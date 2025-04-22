@@ -1,7 +1,6 @@
 // server/controllers/externalApiController.js
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
 // --- Create Map via API Key ---
 export const externalCreateMap = async (req, res, next) => {
