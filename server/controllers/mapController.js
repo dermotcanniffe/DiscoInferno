@@ -1,7 +1,6 @@
 // server/controllers/mapController.js
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient(); // Import and instantiate Prisma Client
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
 // --- Create Map ---
 // (Associate with logged-in user)

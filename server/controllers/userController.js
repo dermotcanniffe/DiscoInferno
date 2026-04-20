@@ -1,8 +1,7 @@
 // server/controllers/userController.js
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
 // Controller to generate/reset API key for the logged-in user
 export const generateApiKey = async (req, res, next) => {

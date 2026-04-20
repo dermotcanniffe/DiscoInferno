@@ -1,9 +1,9 @@
 // server/controllers/authController.js
 import bcrypt from 'bcryptjs'; // Use default import
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
-const prisma = new PrismaClient();
 const SALT_ROUNDS = 10; // Cost factor for hashing algorithm
 
 // --- Register New User ---

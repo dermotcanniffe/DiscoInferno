@@ -1,7 +1,6 @@
 // server/controllers/externalLinkController.js
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
 // Helper function to check map ownership (optional, can do inline)
 async function checkMapOwnership(userId, mapId) {

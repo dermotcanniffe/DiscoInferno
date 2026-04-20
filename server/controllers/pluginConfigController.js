@@ -1,7 +1,6 @@
 // server/controllers/pluginConfigController.js
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
+import prisma from '../../src/lib/prisma.js'; 
 
 // GET / - List configurations for the logged-in user
 export const getPluginConfigs = async (req, res, next) => {

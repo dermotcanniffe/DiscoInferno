@@ -1,11 +1,88 @@
-// tailwind.config.js - converted to ES module
-export default {
+// tailwind.config.js - CORRECTED CONFIGURATION for Shadcn UI (ESM Format)
+
+import animatePlugin from 'tailwindcss-animate'; // Use import for ESM
+
+/** @type {import('tailwindcss').Config} */
+const config = {
+  darkMode: ["class"], // Standard strategy for dark mode
   content: [
-    "./index.html",
-    "./src/**/*.{js,jsx}"
+    './pages/**/*.{ts,tsx,js,jsx}', // Include if using a pages dir
+    './components/**/*.{ts,tsx,js,jsx}', // Include components dir
+    './app/**/*.{ts,tsx,js,jsx}', // Include if using Next.js App Router
+    './src/**/*.{ts,tsx,js,jsx}', // Include your src dir
+    './index.html', // Include if applicable
   ],
+  prefix: "", // Matches your components.json
   theme: {
-    extend: {}
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+       // Add the color mappings to CSS variables
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      // Add border radius mapping to CSS variable
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      // Add standard keyframes/animations used by some Shadcn components
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
   },
-  plugins: []
+   // Add the animate plugin
+  plugins: [animatePlugin],
 };
+
+export default config; // Use export default for ESM
