@@ -2,8 +2,8 @@
 import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
-//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
+//import { PrismaClient } from '@prisma/client'; // using Singleton Prisma Client
 import prisma from '../../src/lib/prisma.js'; 
 
 

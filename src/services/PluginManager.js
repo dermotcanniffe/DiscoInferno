@@ -1,68 +1,65 @@
-// src/services/PluginManager.js
+import fs from 'fs'; // ESM import for built-in modules
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url'; // Utilities for ESM path handling
 
-const fs = require('fs');
-const path = require('path');
-
-// --- Helper: Determine Project Root ---
-// This assumes PluginManager.js is in /src/services/. Adjust if needed.
-// Using a more robust method might be needed in complex setups (e.g., find-package-json).
+// --- Helper: Determine Project Root reliably in ESM ---
+// __filename and __dirname are not available directly in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Adjust relative path if PluginManager.js is not exactly in /src/services/
 const projectRoot = path.resolve(__dirname, '../../');
-console.log(`PluginManager: Determined project root as: ${projectRoot}`); // Log for debugging path issues
 
 class PluginManager {
     /**
      * Initializes the PluginManager.
-     * Determines the directory to scan for plugins based on constructor arg,
-     * environment variable, or a default path.
-     * @param {string} [scanDir] - Optional explicit directory path to scan.
+     * @param {string} [scanDir] - Optional directory path to scan for plugins.
      */
     constructor(scanDir) {
         const defaultScanPath = path.join(projectRoot, 'plugins');
         const envScanPath = process.env.PLUGIN_SCAN_DIR;
 
-        let targetScanDir = defaultScanPath; // Start with default
-
+        let targetScanDir = defaultScanPath;
         if (envScanPath) {
-            console.log(`PluginManager: Using environment variable PLUGIN_SCAN_DIR: ${envScanPath}`);
-            targetScanDir = path.resolve(envScanPath); // Resolve env var path
+            targetScanDir = path.resolve(envScanPath);
         }
-
         if (scanDir) {
-            console.log(`PluginManager: Using explicit scan directory provided: ${scanDir}`);
-            targetScanDir = path.resolve(scanDir); // Override with explicit path
+            targetScanDir = path.resolve(scanDir);
         }
 
-        this.pluginScanDir = targetScanDir; // The final absolute path to scan
-        this.loadedPlugins = {}; // Stores loaded plugins keyed by plugin.id
+        this.pluginScanDir = targetScanDir;
+        this.loadedPlugins = {};
 
-        console.log(`PluginManager initialized. Final scan directory: ${this.pluginScanDir}`);
+        console.log(`PluginManager initialized. Scanning directory: ${this.pluginScanDir}`);
     }
 
     /**
-     * Checks if a loaded module conforms to the basic Plugin MVA structure.
+     * Checks if a loaded module conforms to the basic Plugin structure.
      * @param {object} pluginModule - The loaded plugin module export.
-     * @returns {boolean} True if the structure is valid, false otherwise.
+     * @returns {boolean}
      * @private
      */
     _isValidPlugin(pluginModule) {
+        // Basic structural validation based on MVA + Actions
         return typeof pluginModule === 'object' &&
                pluginModule !== null &&
                typeof pluginModule.id === 'string' && pluginModule.id.length > 0 &&
                typeof pluginModule.name === 'string' &&
                typeof pluginModule.version === 'string' &&
                typeof pluginModule.getSettingsSchema === 'function' &&
-               typeof pluginModule.searchExternalItems === 'function' && // Adjust if this became optional in MVA
-               typeof pluginModule.getExternalIdentifiersToStore === 'function' &&
-               typeof pluginModule.getDisplayInfo === 'function';
+            //   typeof pluginModule.searchExternalItems === 'function' && // Make optional if not all plugins link
+               typeof pluginModule.getExternalIdentifiersToStore === 'function' && // Make optional
+               typeof pluginModule.getDisplayInfo === 'function' && // Make optional
+               // Action methods are optional per plugin
+               (typeof pluginModule.getAvailableActions === 'undefined' || typeof pluginModule.getAvailableActions === 'function') &&
+               (typeof pluginModule.executeAction === 'undefined' || typeof pluginModule.executeAction === 'function');
     }
 
     /**
      * Loads all valid plugins found in the configured scan directory.
-     * Assumes each subdirectory represents a plugin with an index.js entry point.
-     * Uses synchronous operations for simplicity during typical app startup.
+     * Now uses async import() for ESM compatibility.
      */
-    loadPlugins() {
-        this.loadedPlugins = {}; // Clear previous state if re-loading
+    async loadPlugins() { // Needs to be async for dynamic imports
+        this.loadedPlugins = {};
         console.log(`PluginManager: Starting plugin scan in ${this.pluginScanDir}...`);
 
         if (!fs.existsSync(this.pluginScanDir)) {
@@ -71,46 +68,42 @@ class PluginManager {
         }
 
         try {
-            // Read all entries in the scan directory
             const pluginDirs = fs.readdirSync(this.pluginScanDir, { withFileTypes: true });
 
             for (const dirent of pluginDirs) {
-                // Assume each directory is a potential plugin
                 if (dirent.isDirectory()) {
-                    const pluginName = dirent.name; // e.g., "spira"
+                    const pluginName = dirent.name;
                     const pluginDirFullPath = path.join(this.pluginScanDir, pluginName);
-                    // Convention: Look for 'index.js' as the entry point
-                    const entryPointPath = path.join(pluginDirFullPath, 'index.js');
+                    const entryPointPath = path.join(pluginDirFullPath, 'index.js'); // Convention
 
                     if (fs.existsSync(entryPointPath)) {
                         console.log(`PluginManager: Found potential plugin entry point: ${entryPointPath}`);
                         try {
-                            // Load the plugin code (using require for sync loading)
-                            const pluginModule = require(entryPointPath);
+                            // --- Use dynamic import() for ESM plugin loading ---
+                            // Convert file path to file URL, required for import()
+                            const moduleUrl = pathToFileURL(entryPointPath).href;
+                            const module = await import(moduleUrl);
 
-                            // Validate the loaded module's structure
+                            // Assuming plugins use 'export default' for their main object
+                            const pluginModule = module.default;
+                            // ---
+
                             if (this._isValidPlugin(pluginModule)) {
-                                // Check for duplicate plugin IDs
                                 if (this.loadedPlugins[pluginModule.id]) {
-                                    console.warn(`Duplicate plugin ID '${pluginModule.id}'. Plugin at '${entryPointPath}' is ignored. Existing plugin: ${this.loadedPlugins[pluginModule.id].name}`);
+                                    console.warn(`Duplicate plugin ID '${pluginModule.id}'. Plugin at '${entryPointPath}' will be ignored.`);
                                 } else {
-                                    // Optional: Check if plugin ID matches directory name
                                     if (pluginModule.id !== pluginName) {
                                          console.warn(`Plugin ID '${pluginModule.id}' in ${entryPointPath} does not match directory name '${pluginName}'.`);
                                     }
-                                    // Store the valid plugin
                                     this.loadedPlugins[pluginModule.id] = pluginModule;
                                     console.log(`Successfully loaded plugin: ${pluginModule.name} (ID: ${pluginModule.id}, v${pluginModule.version})`);
                                 }
                             } else {
-                                console.error(`Plugin at '${entryPointPath}' has invalid structure or missing MVA methods. Skipped.`);
+                                console.error(`Plugin at '${entryPointPath}' has invalid structure or missing methods. Skipped.`);
                             }
                         } catch (loadError) {
-                            console.error(`Error loading plugin code from '${entryPointPath}':`, loadError);
+                            console.error(`Error dynamically importing plugin from '${entryPointPath}':`, loadError);
                         }
-                    } else {
-                         // It's a directory, but no index.js found - maybe log this?
-                         // console.log(`Directory found at ${pluginDirFullPath}, but no index.js entry point.`);
                     }
                 }
             }
@@ -123,8 +116,8 @@ class PluginManager {
 
     /**
      * Retrieves a loaded plugin by its unique ID.
-     * @param {string} pluginId - The unique ID of the plugin.
-     * @returns {object | null} The loaded plugin object adhering to the Plugin interface, or null if not found/loaded.
+     * @param {string} pluginId
+     * @returns {import('../../plugins/plugin-api').Plugin | null} // Conceptual typing
      */
     getPlugin(pluginId) {
         return this.loadedPlugins[pluginId] || null;
@@ -132,19 +125,15 @@ class PluginManager {
 
     /**
      * Gets a map of all successfully loaded plugins.
-     * @returns {{ [pluginId: string]: object }} A dictionary of loaded plugins.
+     * @returns {{ [pluginId: string]: import('../../plugins/plugin-api').Plugin }} // Conceptual typing
      */
     getAllPlugins() {
-        // Return a shallow copy to prevent modification of the internal store
         return { ...this.loadedPlugins };
     }
 }
 
-// --- Export Strategy ---
-// Option 1: Export a singleton instance (often useful for managers)
-const pluginManagerInstance = new PluginManager();
-module.exports = pluginManagerInstance;
+// Create the singleton instance
+const instance = new PluginManager();
 
-// Option 2: Export the class itself (if you need multiple instances or control instantiation elsewhere)
-// module.exports = PluginManager;
-
+// --- Corrected Export for ESM ---
+export default instance;

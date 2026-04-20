@@ -1,6 +1,5 @@
 // src/services/SettingsService.js
-const { PrismaClient } = require('@prisma/client'); // Adjust if your client path is different
-const prisma = new PrismaClient(); // Or import your shared instance: const prisma = require('../lib/prisma');
+import prisma from '../lib/prisma.js';
 async function getCoreSetting(key, defaultValue = null) {
     if (!key) return defaultValue; // Handle empty key case
     try {
@@ -50,9 +49,108 @@ async function saveCoreSetting(key, value) {
         throw error; // Rethrow for the caller to handle
     }
 }
-module.exports = {
+// 
+/**
+ * Retrieves the configuration and enabled status for a specific plugin for a given user.
+ * @param {string} pluginId - The unique ID of the plugin (e.g., "spira").
+ * @param {string} userId - The ID of the user.
+ * @returns {Promise<{ configuration: object, isEnabled: boolean } | null>} - The config object and status, or null if not found.
+ */
+async function getPluginConfiguration(pluginId, userId) {
+    if (!pluginId || !userId) {
+        console.error("getPluginConfiguration: pluginId and userId are required.");
+        return null; // Or throw an error
+    }
+    try {
+        const configRecord = await prisma.pluginConfiguration.findUnique({
+            where: {
+                // Use the default composite key identifier format: field1_field2
+                userId_pluginId: {
+                    userId: userId,
+                    pluginId: pluginId,
+                }
+            },
+            select: {
+                configuration: true, // Select the JSON field
+                isEnabled: true      // Select the boolean field
+            }
+        });
+
+        if (configRecord) {
+            // Prisma returns JSON as is, which should be an object already if stored correctly
+             // Ensure configuration is an object, even if DB stores null/invalid JSON accidentally
+            const configuration = typeof configRecord.configuration === 'object' && configRecord.configuration !== null
+                                   ? configRecord.configuration
+                                   : {}; // Default to empty object if null/invalid JSON
+            return {
+                 configuration: configuration, // Should be JS object
+                 isEnabled: configRecord.isEnabled
+             };
+        } else {
+            return null; // Configuration not found for this user/plugin
+        }
+    } catch (error) {
+        console.error(`Error fetching plugin configuration for plugin '${pluginId}', user '${userId}':`, error);
+        // Depending on desired behavior, could return null or re-throw
+        return null;
+    }
+}
+
+/**
+ * Saves (creates or updates) the configuration JSON and enabled status for a specific plugin for a given user.
+ * @param {string} pluginId - The unique ID of the plugin.
+ * @param {string} userId - The ID of the user.
+ * @param {object} configurationData - The JavaScript object containing the settings to save.
+ * @param {boolean} isEnabled - The desired enabled status for the plugin for this user.
+ * @returns {Promise<boolean>} - True on success, false on failure (or throws error).
+ */
+async function savePluginConfiguration(pluginId, userId, configurationData, isEnabled) {
+     if (!pluginId || !userId || typeof configurationData === 'undefined' || typeof isEnabled === 'undefined') {
+        console.error("savePluginConfiguration: pluginId, userId, configurationData, and isEnabled are required.");
+        throw new Error("Missing required parameters for saving plugin configuration.");
+    }
+    // Ensure configurationData is at least an empty object if null/undefined passed
+    const dataToSave = configurationData || {};
+    // Ensure isEnabled is explicitly boolean
+    const enabledStatus = !!isEnabled;
+
+    try {
+        await prisma.pluginConfiguration.upsert({
+            where: {
+                userId_pluginId: {
+                    userId: userId,
+                    pluginId: pluginId,
+                }
+            },
+            create: {
+                userId: userId,
+                pluginId: pluginId,
+                configuration: dataToSave, // Prisma handles JSON serialization
+                isEnabled: enabledStatus,
+            },
+            update: {
+                configuration: dataToSave,
+                isEnabled: enabledStatus,
+                updatedAt: new Date() // Explicitly set updatedAt on update
+            },
+        });
+        console.log(`Plugin configuration saved successfully for plugin '${pluginId}', user '${userId}'.`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving plugin configuration for plugin '${pluginId}', user '${userId}':`, error);
+        throw error; // Rethrow for the controller to handle
+    }
+}
+
+
+// --- Update Exports ---
+export {
     getCoreSetting,
     getAllCoreSettings,
     saveCoreSetting,
-    // We will add getPluginSettings and savePluginSettings later
+    // Add the new plugin methods
+    getPluginConfiguration,
+    savePluginConfiguration,
 };
+
+// Or if using a class structure, add these as methods to the class.

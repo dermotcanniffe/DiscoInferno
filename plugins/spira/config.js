@@ -1,9 +1,9 @@
 // /plugins/spira/config.js
-// Configuration specifics for interacting with the SpiraTest API
+// Configuration specifics for interacting with the Inflectra Spira API
 
 const spiraConfig = {
     // --- General ---
-    appName: "SpiraTest", // Used for user-facing labels potentially
+    appName: "Spira", // Used for user-facing labels potentially
 
     // --- Authentication ---
     auth: {
@@ -18,10 +18,10 @@ const spiraConfig = {
     // Placeholders like {projectId}, {requirementId}, {query} will be replaced.
     // Note: These are conceptual patterns; actual Spira API calls might use different query params.
     endpoints: {
-        searchRequirements: "/projects/{projectId}/requirements?search_string={query}", // Example: Needs project scope often
-        getRequirementDetails: "/projects/{projectId}/requirements/{requirementId}",
+        searchRequirements: "/projects/{productId}/requirements?search_string={query}", // Example: Needs project scope often
+        getRequirementDetails: "/projects/{productId}/requirements/{requirementId}",
         // Assume for now details includes ProjectID. If not, a separate lookup might be needed.
-        exportMapAsRequirement: "/projects/{projectId}/requirements", // Typically a POST to create
+        exportMapAsRequirement: "/projects/{productId}/requirements", // Typically a POST to create
     },
 
     // --- Identifier Mapping ---
@@ -53,5 +53,5 @@ const spiraConfig = {
         // Could add details on how mapData fields map to Spira fields
     }
 };
-
-module.exports = spiraConfig;
+// Use ES Module default export
+export default spiraConfig;

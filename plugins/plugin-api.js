@@ -1,148 +1,148 @@
-
 /**
- * @fileoverview JSDoc definitions for the Minimum Viable Plugin API contract.
- * A plugin module should export an object that adheres to the Plugin interface defined below.
+ * @fileoverview JSDoc definitions for the Plugin API contract.
+ * Defines the expected interface for plugin modules.
  */
 
-// --- Type Definitions for Complex Objects ---
+// --- Type Definitions ---
 
 /**
- * Represents the definition of a single setting field required by a plugin.
- * Used by the core application to render the settings form for the plugin.
+ * Defines a setting field required by a plugin.
  * @typedef {object} SettingField
- * @property {string} key - The unique key to identify this setting (used for storage and retrieval).
- * @property {string} label - The user-friendly label displayed next to the setting field.
- * @property {'text' | 'url' | 'password' | 'number'} type - The type of input field to render.
- * @property {boolean} required - Whether this setting field must have a value.
- * @property {string} [description] - Optional help text displayed with the setting field.
- * @property {any} [defaultValue] - Optional default value for the setting field.
+ * @property {string} key - Unique key for the setting.
+ * @property {string} label - User-friendly label.
+ * @property {'text' | 'url' | 'password' | 'number' | 'boolean' | 'textarea'} type - Input type.
+ * @property {boolean} required - If the setting is required.
+ * @property {string} [description] - Optional help text.
+ * @property {any} [defaultValue] - Optional default value.
  */
 
 /**
- * Represents a single item returned from a plugin's search function.
- * Used to populate autocomplete suggestions.
+ * Represents an item returned from plugin search results.
  * @typedef {object} SearchResultItem
- * @property {string|number} id - The unique identifier of the external item (e.g., MyApp Requirement ID). This value might be passed back to `getExternalIdentifiersToStore`.
- * @property {string} name - The primary text displayed to the user in the suggestion list (e.g., "REQ-12: Fix login bug").
- * @property {string} [description] - Optional additional details displayed with the suggestion.
+ * @property {string|number} id - Unique ID of the external item.
+ * @property {string} name - Display name for the search result.
+ * @property {string} [description] - Optional additional details.
  */
 
 /**
- * Represents the specific identifiers stored in the database for a MyApp link.
- * Tailored for the MyApp plugin's needs based on our MVA discussion.
- * @typedef {object} MyAppStoredIdentifiers
- * @property {number} requirementId - The numeric ID of the MyApp Requirement.
- * @property {number} productId - The numeric ID of the MyApp Product containing the Requirement.
+ * Represents the identifiers stored in the DB for an external link.
+ * The structure is specific to the plugin (defined by its config).
+ * Example for Spira: { requirementId: number, productId: number }
+ * @typedef {object} StoredIdentifiers
  */
 
 /**
- * Represents the information required by the core application to display a link.
- * Returned by the plugin's getDisplayInfo method.
+ * Information needed by the Core App to display a link.
  * @typedef {object} DisplayInfo
- * @property {string} name - The primary display name for the link (e.g., fetched Requirement Name).
- * @property {string} url - The full, clickable URL pointing to the item in the external system.
- * @property {string} [details] - Optional additional details to display alongside the link.
+ * @property {string} name - Primary display name (e.g., "REQ-123: Fix Bug").
+ * @property {string} url - Clickable URL to the external item.
+ * @property {string} [details] - Optional extra details (e.g., status).
  */
 
 /**
- * Represents the saved settings values for a plugin.
- * Provided by the core application to plugin methods.
- * Keys correspond to the 'key' defined in SettingField.
+ * Represents the saved settings values for a plugin (retrieved for a user).
+ * Keys correspond to 'key' defined in SettingField.
  * @typedef {{ [key: string]: any }} PluginSettings
  */
 
-
 /**
- * Context object passed to getAvailableActions and executeAction.
- * Allows actions to be context-aware (e.g., available only for certain data types).
- * Initially, we only care about 'mapExport'.
- * @typedef {object} ActionContext
- * @property {'mapExport' | string} type - The context type where actions are requested.
- * @property {object} [mapData] - The data of the map, present if type is 'mapExport'.
- * // Add other context properties as needed later (e.g., itemId, selectedText)
- */
-
-/**
- * Defines an action that a plugin can perform.
- * Returned by getAvailableActions.
+ * Defines an action a plugin can perform in a specific context.
  * @typedef {object} ActionDefinition
- * @property {string} id - A unique identifier for the action within the plugin (e.g., "exportMap").
- * @property {string} label - The user-facing text for the button or menu item (e.g., "Export Map to MyApp").
- * @property {string} [icon] - Optional identifier for an icon to display.
- * @property {string} [description] - Optional tooltip or longer description.
+ * @property {string} id - Unique ID for the action (e.g., "exportMap", "viewDetails").
+ * @property {string} label - User-facing text for the button/menu item (e.g., "Export Map to Spira").
+ * @property {string} [icon] - Optional icon identifier.
+ * @property {string} [description] - Optional tooltip.
  */
 
 /**
- * Represents the result of executing an action. (Define more clearly as needed)
+ * Context object passed to plugin methods, providing information
+ * about the item or situation where the plugin is being invoked.
+ * @typedef {object} LinkActionContext
+ * @property {'link' | 'display' | 'action' | 'mapExport' | string} type - The type of operation or context.
+ * @property {string} itemType - The type of item in DiscoInferno (e.g., 'exampleMap', 'story').
+ * @property {string} itemId - The ID of the DiscoInferno item being interacted with.
+ * @property {object} [itemData] - Optional: The full data of the item, potentially including associated config like a target Spira Product ID (e.g., `{ spiraProductId: 101 }`). How this is populated depends on the Core App.
+ * @property {string} [actionId] - Identifier of the specific action being executed (required for `executeAction`).
+ */
+
+/**
+ * Represents the result of executing a plugin action.
  * @typedef {object} ActionResult
- * @property {boolean} success - Whether the action was successful.
+ * @property {boolean} success - Whether the action succeeded.
  * @property {string} [message] - Optional message for the user.
  * @property {any} [data] - Optional data returned by the action.
  */
 
-
-
 /**
- * Represents the API provided by the core application to plugins.
- * Passed during initialization or potentially to specific methods.
+ * API provided by the Core App to plugins (passed during init or to methods).
  * @typedef {object} CoreApi
- * @property {(key: string) => Promise<any>} getSetting - Asynchronously retrieves a saved setting value for the current plugin. Throws if setting not found? (Needs definition).
- * @property {(level: 'info' | 'warn' | 'error', message: string) => void} [log] - Optional logging function using the core app's logger.
- * // Add other core functions needed by plugins here later (e.g., access user info).
+ * @property {(key: string) => Promise<any>} getSetting - Retrieves a saved *plugin* setting value for the *current user*.
+ * @property {(level: 'info' | 'warn' | 'error', message: string) => void} [log] - Logging function.
+ * // Add other core functions here later (e.g., getUserInfo(), getMapData(mapId))
  */
 
 
 // --- Plugin Interface Definition ---
 
 /**
- * Defines the Minimum Viable API contract that a plugin module must implement/export.
- * NOW INCLUDES OPTIONAL ACTION METHODS.
+ * Defines the API contract that a plugin module's default export must implement.
  * @typedef {object} Plugin
- * @property {string} id - Unique, machine-readable plugin identifier (e.g., "MyApp").
- * @property {string} name - Human-readable plugin name (e.g., "MyApp Integration").
- * @property {string} version - Plugin version string (e.g., "0.1.0").
+ * @property {string} id - Unique, machine-readable plugin identifier.
+ * @property {string} name - Human-readable plugin name.
+ * @property {string} version - Plugin version string.
+ * @property {string} [description] - Optional description.
  *
- * @property {() => Promise<SettingField[]>} getSettingsSchema - Returns definitions for required settings fields. (Required)
- * @property {(query: string, settings: PluginSettings) => Promise<SearchResultItem[]>} searchExternalItems - Searches external system for linking. (Required for linking)
- * @property {(selectedItem: SearchResultItem | string | number, settings: PluginSettings) => Promise<object>} getExternalIdentifiersToStore - Validates selection/input and returns identifiers for storage. (Required for linking)
- * @property {(storedIdentifiers: object, settings: PluginSettings) => Promise<DisplayInfo>} getDisplayInfo - Retrieves current info (name, URL) for displaying a link. (Required for linking)
+ * @property {() => Promise<SettingField[]>} getSettingsSchema
+ * Returns definitions for required settings fields. Required.
  *
- * @property {(context: ActionContext) => Promise<ActionDefinition[]>} [getAvailableActions]
- * OPTIONAL: Asynchronously returns a list of actions the plugin can perform in the given context.
- * Initially, the Core App will only look for actions when context.type is 'mapExport' and action.id is 'exportMap'.
+ * @property {(query: string, context: LinkActionContext, settings: PluginSettings) => Promise<SearchResultItem[]>} [searchExternalItems]
+ * OPTIONAL: Searches external system based on query within the given context.
  *
- * @property {(actionId: string, context: ActionContext) => Promise<ActionResult>} [executeAction]
- * OPTIONAL: Asynchronously executes a specific action identified by actionId, using the provided context.
- * Called by the Core App when the user triggers an action defined by this plugin.
+ * @property {(selectedItem: SearchResultItem | string | number, context: LinkActionContext, settings: PluginSettings) => Promise<StoredIdentifiers>} [getExternalIdentifiersToStore]
+ * OPTIONAL: Validates selection/input and returns identifiers object for storage, based on context. Needed for linking.
+ *
+ * @property {(storedIdentifiers: StoredIdentifiers, context: LinkActionContext, settings: PluginSettings) => Promise<DisplayInfo>} [getDisplayInfo]
+ * OPTIONAL: Retrieves current display information for a stored link, based on context. Needed for displaying links.
+ *
+ * @property {(context: LinkActionContext, settings: PluginSettings) => Promise<ActionDefinition[]>} [getAvailableActions]
+ * OPTIONAL: Returns a list of actions the plugin can perform in the given context.
+ *
+ * @property {(context: LinkActionContext, settings: PluginSettings) => Promise<ActionResult>} [executeAction]
+ * OPTIONAL: Executes an action defined by context.actionId, using data from context and settings.
  */
 
-
-// --- Example Usage (Conceptual) ---
+// --- Example Usage in a Plugin File ---
 /*
- // In plugins/MyApp/index.js
+import myConfig from './config.js';
+import { getCoreSetting } from '../services/SettingsService.js'; // Example if service needed directly (less ideal)
 
- const MyAppPlugin = {
-   id: "MyApp",
-   name: "MyApp Integration",
-   version: "0.1.0",
+/** @type {Plugin} * /
+const myPlugin = {
+  id: 'my-plugin',
+  name: 'My Plugin',
+  version: '1.0.0',
 
-   async getSettingsSchema() {
-     // ... implementation returning MyApp's SettingField definitions ...
-   },
+  async getSettingsSchema() {
+    // ... return schema ...
+  },
 
-   async searchExternalItems(query, settings) {
-     // ... implementation using settings.apiUrl, settings.apiKey to call MyApp API ...
-   },
+  async searchExternalItems(query, context, settings) {
+    // Use query, context.itemId, context.itemData, settings (which contains user config like API keys)
+    // ... fetch from external API ...
+    return [ { id: 1, name: 'Result 1'} ];
+  },
 
-   async getExternalIdentifiersToStore(selectedItem, settings) {
-     // ... implementation validating ID, finding productId, returning { requirementId, productId } ...
-   },
+  // ... other methods ...
 
-   async getDisplayInfo(storedIdentifiers, settings) {
-     // ... implementation using storedIdentifiers.requirementId, settings.apiUrl etc. to get name and build URL ...
+   async executeAction(context, settings) {
+     if (context.actionId === 'doSomething') {
+       // Use context.itemId, context.itemData, settings
+       // ... perform action ...
+       return { success: true };
+     }
+     return { success: false, message: 'Action not supported' };
    }
- };
+};
 
- module.exports = MyAppPlugin;
- */
-
+export default myPlugin;
+*/

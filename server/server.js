@@ -7,53 +7,65 @@ import passport from 'passport'; // Import passport
 import authRoutes from './routes/authRoutes.js'; // Import auth routes
 import externalApiRoutes from './routes/externalApiRoutes.js';
 import pluginConfigRoutes from './routes/pluginConfigRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js'; 
+import linkRoutes from './routes/linkRoutes.js';
 import './config/passport.js'; // Import passport configuration (we'll create this next)
+// --- Import Plugin Manager ---
+import pluginManager from '../src/services/PluginManager.js'; // Adjust path if needed!
 
 
 // Load environment variables from .env file
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 5000; // Use port from env file or default to 5000
+// --- Main Async Function to Start Server ---
+const startServer = async () => {
+  try {
+      // --- Load Plugins EARLY ---
+      console.log('[Server] Loading plugins...');
+      await pluginManager.loadPlugins(); // <<< CALL & AWAIT PLUGIN LOADING
+      console.log('[Server] Plugin loading sequence complete.');
 
-// Middleware
-app.use(cors()); // Enable CORS for all origins (adjust later for production)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+      // --- Initialize Express App ---
+      const app = express();
+      const PORT = process.env.PORT || 5000;
 
-// Initialize Passport BEFORE mounting routes that use it
-app.use(passport.initialize())
+      // --- Middleware ---
+      app.use(cors()); // Enable CORS
+      app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
+      app.use(express.urlencoded({ limit: '10mb', extended: true })); // Parse URL-encoded bodies
+      app.use(passport.initialize()); // Initialize Passport
 
-// ... graceful shutdown ...
+      // --- API Routes ---
+      console.log('[Server] Mounting API routes...');
+      app.get('/api/test', (req, res) => res.json({ message: 'Backend server is running!' }));
+      app.use('/api/auth', authRoutes);
+      app.use('/api/maps', mapRoutes);
+      app.use('/api/me', userRoutes);
+      app.use('/api/external', externalApiRoutes);
+      app.use('/api/me/plugins', pluginConfigRoutes);
+      app.use('/api/settings', settingsRoutes);
+      app.use('/api/settings', settingsRoutes);
+      app.use('/api/link', linkRoutes);
+      console.log('[Server] API routes mounted.');
 
-// --- API Routes ---
+      // --- Basic Error Handling Middleware (Place after routes) ---
+      app.use((err, req, res, next) => {
+          console.error("[Server Error Middleware] Caught error:", err.stack);
+          res.status(500).send('Something broke!');
+      });
 
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Backend server is running!' });
-});
+      // --- Start Listening ---
+      app.listen(PORT, () => {
+          console.log(`Server listening on port ${PORT}`); // Should appear AFTER plugin logs
+      });
 
-// Mount Auth Routes
-app.use('/api/auth', authRoutes); // Routes for /api/auth/register, /api/auth/login
+  } catch (error) {
+      console.error("FATAL: Server failed to start:", error);
+      process.exit(1); // Exit if critical startup error (like plugin loading fails badly)
+  }
+};
 
-// Mount the map routes
-app.use('/api/maps', mapRoutes); // All routes defined in mapRoutes will be prefixed with /api/maps
-// Mount the user routes
-app.use('/api/me', userRoutes); // <-- (already protected internally)
-// Mount external API routes
-app.use('/api/external', externalApiRoutes);
-// Mount Plugin Config Routes
-app.use('/api/me/plugins', pluginConfigRoutes);
+// --- Execute the startup function ---
+startServer();
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
-
-// Basic error handling (optional but recommended)
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
-});
-
-export default app; // Optional: export for potential testing
+//export default app; // Optional: export for potential testing
