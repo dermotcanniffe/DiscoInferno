@@ -23,6 +23,7 @@ import RuleCard from './components/RuleCard';
 import ExampleCard from './components/ExampleCard';
 import QuestionCard from './components/QuestionCard';
 import StoryCard from './components/StoryCard';
+import ConfirmDeleteRuleDialog from './components/ConfirmDeleteRuleDialog';
 
 function DragWrapper({ id, children, color, width = "w-48" }) {
   const {
@@ -84,6 +85,7 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
   }, [data]);
   const [localTitle, setLocalTitle] = useState(data?.title ?? '');
   const [localDescription, setLocalDescription] = useState(data?.description ?? '');
+  const [pendingDeleteRuleIndex, setPendingDeleteRuleIndex] = useState(null);
   
   // Sync Effects for Title/Description
   useEffect(() => {
@@ -342,6 +344,58 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
     onChange(clonedData); // Pass the entire modified data object back to App
   };
 
+  // --- Delete Handlers ---
+  const deleteRule = (ri) => {
+    if (!data?.stories?.[0]) return;
+    const rules = data.stories[0].rules;
+    if (!rules || ri < 0 || ri >= rules.length) return;
+    const clonedData = structuredClone(data);
+    clonedData.stories[0].rules.splice(ri, 1);
+    clonedData.stories[0].rules.forEach((rule, index) => {
+      rule.order = index;
+    });
+    onChange(clonedData);
+  };
+
+  const deleteExample = (ri, ei) => {
+    if (!data?.stories?.[0]?.rules?.[ri]) return;
+    const examples = data.stories[0].rules[ri].examples;
+    if (!examples || ei < 0 || ei >= examples.length) return;
+    const clonedData = structuredClone(data);
+    clonedData.stories[0].rules[ri].examples.splice(ei, 1);
+    clonedData.stories[0].rules[ri].examples.forEach((ex, index) => {
+      ex.order = index;
+    });
+    onChange(clonedData);
+  };
+
+  const deleteQuestion = (qi) => {
+    if (!data?.stories?.[0]) return;
+    const questions = data.stories[0].questions;
+    if (!questions || qi < 0 || qi >= questions.length) return;
+    const clonedData = structuredClone(data);
+    clonedData.stories[0].questions.splice(qi, 1);
+    clonedData.stories[0].questions.forEach((q, index) => {
+      q.order = index;
+    });
+    onChange(clonedData);
+  };
+
+  // --- Confirmation dialog state management ---
+  const requestDeleteRule = (ri) => {
+    setPendingDeleteRuleIndex(ri);
+  };
+
+  const confirmDeleteRule = () => {
+    deleteRule(pendingDeleteRuleIndex);
+    setPendingDeleteRuleIndex(null);
+  };
+
+  const cancelDeleteRule = () => {
+    setPendingDeleteRuleIndex(null);
+  };
+  // --- End Delete Handlers ---
+
   // REPLACE your existing handleDragEnd function with this:
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -511,6 +565,7 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
                       storyIndex={0} // Assuming first story for now
                       onUpdateText={handleRuleTextUpdate}
                       onAddExample={addExample} // Pass addExample handler
+                      onDeleteRule={requestDeleteRule}
                     />
                     {/* Remove the old Rule Label, Textarea, Button from here */}
                   </DragWrapper>
@@ -530,6 +585,7 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
                             storyIndex={0} // Assuming first story
                             onUpdateText={handleExampleTextUpdate}
                             registerRef={registerExampleRef} // Pass ref registration function
+                            onDeleteExample={deleteExample}
                           />
                         </DragWrapper>
                       ))}
@@ -566,6 +622,7 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
                     questionIndex={i}
                     storyIndex={0} // Assuming first story
                     onUpdateText={handleQuestionTextUpdate}
+                    onDeleteQuestion={deleteQuestion}
                   />
                 </DragWrapper>
               ))}
@@ -587,6 +644,12 @@ export default function ExampleMapEditor({ data, onChange, onSave }) {
           </div>
         </div>
       </div>
+      <ConfirmDeleteRuleDialog
+        open={pendingDeleteRuleIndex !== null}
+        onConfirm={confirmDeleteRule}
+        onCancel={cancelDeleteRule}
+        ruleText={pendingDeleteRuleIndex !== null ? (data?.stories?.[0]?.rules?.[pendingDeleteRuleIndex]?.text || '') : ''}
+      />
     </DndContext>
   );
 }

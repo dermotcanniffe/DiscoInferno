@@ -2,7 +2,7 @@
 
 import pluginManager from '../../src/services/PluginManager.js';
 import { getPluginConfiguration } from '../../src/services/SettingsService.js';
-import prisma from '../lib/prisma.js'; // Import shared Prisma client
+import prisma from '../../src/lib/prisma.js'; // Import shared Prisma client
 
 
 /**
