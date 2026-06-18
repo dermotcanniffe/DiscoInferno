@@ -1,7 +1,9 @@
 // src/components/ExampleCard.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { Trash2 } from 'lucide-react';
 import { CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 // Props:
 // - exampleData: The specific example object { text, order, ... }
@@ -10,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 // - storyIndex: The index of the parent story (currently 0)
 // - onUpdateText: Function to call to update main state
 // - registerRef: Function to pass the textarea ref up for focusing (optional)
-function ExampleCard({ exampleData, exampleIndex, ruleIndex, storyIndex, onUpdateText, registerRef }) {
+function ExampleCard({ exampleData, exampleIndex, ruleIndex, storyIndex, onUpdateText, registerRef, onDeleteExample }) {
     const [localText, setLocalText] = useState(exampleData?.text ?? '');
     const textareaRef = useRef(null); // Ref for the textarea element
 
@@ -44,7 +46,20 @@ function ExampleCard({ exampleData, exampleIndex, ruleIndex, storyIndex, onUpdat
 
     return (
         <CardContent> {/* Or appropriate wrapper */}
-            <label className="font-bold block mb-1 text-sm">Example</label>
+            <div className="flex items-center justify-between mb-1">
+                <label className="font-bold text-sm">Example</label>
+                {onDeleteExample && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDeleteExample(ruleIndex, exampleIndex)}
+                        aria-label={`Delete example: ${exampleData?.text || 'Untitled example'}`}
+                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
             <Textarea
                 ref={textareaRef} // Assign the ref to the textarea
                 className="bg-transparent"
